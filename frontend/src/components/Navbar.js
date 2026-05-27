@@ -41,15 +41,6 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
     setMobileOpen(false);
   };
 
-  const handleGetStarted = () => {
-    if (onGetStarted) {
-      onGetStarted();
-    } else {
-      navigate('/study');
-    }
-    setMobileOpen(false);
-  };
-
   const handleLoginClick = () => {
     if (onLoginClick) {
       onLoginClick();

@@ -40,7 +40,7 @@ const AuthModal = ({ isOpen, onClose, initialTab = 'login' }) => {
       return;
     }
 
-    const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
     if (!emailRegex.test(trimmedEmail)) {
       setLocalError('Please enter a valid email address.');
       return;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import YouTube from 'react-youtube';
-import { Search, Target, Home, BarChart3, Settings, Play, Loader2 } from 'lucide-react';
+import { Search, Target, Home, Play, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import StudyTimer from '../components/StudyTimer';
 import SearchBar from '../components/SearchBar';
