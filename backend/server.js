@@ -11,8 +11,43 @@ const app = express();
 app.use(helmet());
 
 // CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://youtubestudyshield.netlify.app'
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in the allowed origins list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Dynamically check FRONTEND_URL or ALLOWED_ORIGINS env variables if defined
+    if (process.env.FRONTEND_URL) {
+      const urls = process.env.FRONTEND_URL.split(',').map(url => url.trim());
+      if (urls.includes(origin)) {
+        return callback(null, true);
+      }
+    }
+    
+    if (process.env.ALLOWED_ORIGINS) {
+      const urls = process.env.ALLOWED_ORIGINS.split(',').map(url => url.trim());
+      if (urls.includes(origin)) {
+        return callback(null, true);
+      }
+    }
+    
+    // If running in development, allow any localhost origin
+    if (process.env.NODE_ENV === 'development' && origin.startsWith('http://localhost:')) {
+      return callback(null, true);
+    }
+    
+    return callback(null, false);
+  },
   credentials: true
 }));
 
