@@ -54,7 +54,7 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
 
   const navLinkClass = (section) =>
     `relative px-3 py-2 text-sm font-medium transition-colors ${
-      activeSection === section ? 'text-white' : 'text-gray-400 hover:text-white'
+      activeSection === section ? 'text-primary-900' : 'text-slate-600 hover:text-primary-900'
     }`;
 
   return (
@@ -63,8 +63,8 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
       animate={{ y: 0, opacity: 1 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled
-          ? 'glass-dark shadow-lg border-b border-white/10 backdrop-blur-xl'
-          : 'bg-transparent border-b border-transparent'
+          ? 'glass-dark shadow-lg border-b border-primary-900/10 backdrop-blur-xl'
+          : 'bg-[#e9e5fb]/70 border-b border-primary-900/5 backdrop-blur-md'
       }`}
     >
       <motion.div
@@ -72,12 +72,12 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
         animate={{ opacity: scrolled ? 1 : 0 }}
         transition={{ duration: 0.4 }}
         style={{
-          background: 'linear-gradient(180deg, rgba(15,23,42,0.85) 0%, transparent 100%)',
+          background: 'linear-gradient(180deg, rgba(232,226,250,0.92) 0%, rgba(232,226,250,0) 100%)',
         }}
       />
 
       <motion.div
-        className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary-500/50 to-transparent"
+        className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary-600/35 to-transparent"
         animate={{ opacity: scrolled ? 1 : 0 }}
       />
 
@@ -97,11 +97,11 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
             whileTap={{ scale: 0.95 }}
           >
             <BookOpen className="w-5 h-5 text-white" />
-            <div className="absolute inset-0 rounded-xl bg-white/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 rounded-xl bg-accent-300/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
           </motion.div>
           <span className="text-xl sm:text-2xl font-bold tracking-tight">
             <span className="text-gradient">Study</span>
-            <span className="text-white">Shield</span>
+            <span className="text-primary-900">Shield</span>
           </span>
         </button>
 
@@ -126,11 +126,11 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
           
           {user ? (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 glass rounded-full border border-white/10">
+              <div className="flex items-center gap-2 px-3 py-1.5 glass rounded-full border border-primary-900/10">
                 <div className="w-6 h-6 rounded-full bg-gradient flex items-center justify-center text-xs font-bold text-white uppercase">
                   {user.name.charAt(0)}
                 </div>
-                <span className="text-sm font-medium text-white max-w-[100px] truncate">{user.name}</span>
+                <span className="text-sm font-medium text-primary-900 max-w-[100px] truncate">{user.name}</span>
               </div>
               <motion.button
                 type="button"
@@ -140,7 +140,7 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
                   logout();
                   setMobileOpen(false);
                 }}
-                className="px-4 py-2 border border-rose-500/30 hover:border-rose-500/80 bg-rose-500/10 text-rose-300 rounded-full text-sm font-medium transition-colors"
+                className="px-4 py-2 border border-accent-500/25 hover:border-accent-600/70 bg-accent-100/70 text-accent-700 rounded-full text-sm font-medium transition-colors"
               >
                 Logout
               </motion.button>
@@ -148,7 +148,7 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
           ) : (
             <motion.button
               type="button"
-              whileHover={{ scale: 1.03, boxShadow: '0 0 30px rgba(56, 189, 248, 0.4)' }}
+              whileHover={{ scale: 1.03, y: -1 }}
               whileTap={{ scale: 0.97 }}
               onClick={handleLoginClick}
               className="px-5 py-2.5 bg-gradient text-white rounded-full text-sm font-semibold shadow-glow-sm ripple"
@@ -160,7 +160,7 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
 
         <button
           type="button"
-          className="lg:hidden p-2 rounded-lg hover:bg-white/10"
+          className="lg:hidden p-2 rounded-lg text-primary-900 hover:bg-white/60"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
         >
@@ -173,22 +173,22 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="lg:hidden glass-dark border-t border-white/10 px-4 py-4 space-y-3"
+          className="lg:hidden glass-dark border-t border-primary-900/10 px-4 py-4 space-y-3"
         >
-          <button type="button" onClick={() => scrollTo('features')} className="block w-full text-left py-2 text-gray-300">
+          <button type="button" onClick={() => scrollTo('features')} className="block w-full text-left py-2 text-slate-700">
             Features
           </button>
-          <button type="button" onClick={() => scrollTo('about')} className="block w-full text-left py-2 text-gray-300">
+          <button type="button" onClick={() => scrollTo('about')} className="block w-full text-left py-2 text-slate-700">
             About
           </button>
           {showTimer && <StudyTimer compact />}
           {user ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-3 px-4 py-3 glass rounded-2xl border border-white/10">
+              <div className="flex items-center gap-3 px-4 py-3 glass rounded-2xl border border-primary-900/10">
                 <div className="w-8 h-8 rounded-full bg-gradient flex items-center justify-center font-bold text-white uppercase">
                   {user.name.charAt(0)}
                 </div>
-                <span className="font-semibold text-white truncate">{user.name}</span>
+                <span className="font-semibold text-primary-900 truncate">{user.name}</span>
               </div>
               <button
                 type="button"
@@ -196,7 +196,7 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
                   logout();
                   setMobileOpen(false);
                 }}
-                className="w-full py-3 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full font-semibold hover:bg-rose-500/30 transition-colors"
+                className="w-full py-3 bg-accent-100 text-accent-700 border border-accent-500/25 rounded-full font-semibold hover:bg-accent-200 transition-colors"
               >
                 Logout
               </button>

@@ -16,9 +16,9 @@ const Footer = () => {
   };
 
   return (
-    <footer className="relative z-10 mt-24 border-t border-white/10">
+    <footer className="relative z-10 mt-24 border-t border-primary-900/10 text-primary-900">
       <motion.div
-        className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent pointer-events-none"
+        className="absolute inset-0 bg-gradient-to-t from-[#ded8f4] via-[#ebe6fb]/90 to-transparent pointer-events-none"
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
@@ -33,36 +33,49 @@ const Footer = () => {
         >
           <motion.div whileHover={{ y: -2 }} className="lg:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 rounded-xl bg-gradient">
+              <div className="p-2 rounded-xl bg-gradient shadow-glow-sm">
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold">
                 <span className="text-gradient">Study</span>Shield
               </span>
             </div>
-            <p className="text-gray-400 text-sm leading-relaxed mb-6">
+            <p className="text-slate-600 text-sm leading-relaxed mb-6">
               Your AI-powered sanctuary for focused learning on YouTube.
             </p>
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+              className="mb-6 inline-flex items-center gap-3 rounded-2xl bg-white/60 border border-primary-900/10 px-4 py-3 cartoon-blob"
+            >
+              <div className="h-10 w-10 rounded-2xl bg-accent-200 flex items-center justify-center">
+                <BookOpen className="h-5 w-5 text-primary-800" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-24 rounded-full bg-primary-200" />
+                <div className="h-2.5 w-16 rounded-full bg-accent-200" />
+              </div>
+            </motion.div>
             <div className="flex gap-3">
               {[Github, Twitter, Linkedin].map((Icon, i) => (
                 <motion.a
                   key={i}
                   href="#"
                   whileHover={{ scale: 1.1, y: -2 }}
-                  className="p-2.5 glass rounded-xl hover:border-primary-500/50 border border-white/10 transition-colors"
+                  className="p-2.5 glass rounded-xl hover:border-primary-500/50 border border-primary-900/10 transition-colors"
                 >
-                  <Icon className="w-4 h-4 text-gray-400 hover:text-white" />
+                  <Icon className="w-4 h-4 text-slate-600 hover:text-primary-900" />
                 </motion.a>
               ))}
             </div>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
-            <h4 className="font-semibold mb-4 text-white">Legal</h4>
+            <h4 className="font-semibold mb-4 text-primary-900">Legal</h4>
             <ul className="space-y-3">
               {['Privacy Policy', 'Terms & Conditions'].map((item) => (
                 <li key={item}>
-                  <button type="button" className="text-gray-400 hover:text-primary-400 text-sm transition-colors">
+                  <button type="button" className="text-slate-600 hover:text-primary-700 text-sm transition-colors">
                     {item}
                   </button>
                 </li>
@@ -71,19 +84,19 @@ const Footer = () => {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }}>
-            <h4 className="font-semibold mb-4 text-white">Contact</h4>
+            <h4 className="font-semibold mb-4 text-primary-900">Contact</h4>
             <ul className="space-y-3 text-sm">
               <li>
                 <a
                   href="mailto:ayushsrivastavaup62@gmail.com"
-                  className="flex items-center gap-2 text-gray-400 hover:text-primary-400 transition-colors"
+                  className="flex items-center gap-2 text-slate-600 hover:text-primary-700 transition-colors"
                 >
                   <Mail className="w-4 h-4 shrink-0" />
                   ayushsrivastavaup62@gmail.com
                 </a>
               </li>
               <li>
-                <a href="tel:7275794027" className="flex items-center gap-2 text-gray-400 hover:text-primary-400 transition-colors">
+                <a href="tel:7275794027" className="flex items-center gap-2 text-slate-600 hover:text-primary-700 transition-colors">
                   <Phone className="w-4 h-4 shrink-0" />
                   7275794027
                 </a>
@@ -98,7 +111,7 @@ const Footer = () => {
             transition={{ delay: 0.2 }}
             className="lg:col-span-1 md:col-span-2"
           >
-            <h4 className="font-semibold mb-4 text-white">Send a Message</h4>
+            <h4 className="font-semibold mb-4 text-primary-900">Send a Message</h4>
             <form onSubmit={handleSubmit} className="space-y-3">
               <input
                 type="text"
@@ -141,9 +154,9 @@ const Footer = () => {
           </motion.div>
         </motion.div>
 
-        <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+        <div className="mt-12 pt-8 border-t border-primary-900/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-600">
           <p>© {new Date().getFullYear()} StudyShield. All rights reserved.</p>
-          <p className="text-gray-600">Built for focused learners everywhere.</p>
+          <p className="text-slate-500">Built for focused learners everywhere.</p>
         </div>
       </div>
     </footer>

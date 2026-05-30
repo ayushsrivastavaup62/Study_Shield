@@ -11,7 +11,7 @@ const SearchBar = ({ value, onChange, onSearch, loading, className = '' }) => {
   return (
     <form onSubmit={submit} className={`flex items-center gap-2 ${className}`}>
       <div className="relative flex-1 min-w-0">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-500 pointer-events-none" />
         <input
           type="search"
           value={value}
@@ -24,7 +24,7 @@ const SearchBar = ({ value, onChange, onSearch, loading, className = '' }) => {
       <motion.button
         type="submit"
         disabled={loading}
-        whileHover={{ scale: 1.04, boxShadow: '0 0 28px rgba(56, 189, 248, 0.45)' }}
+        whileHover={{ scale: 1.04, y: -1 }}
         whileTap={{ scale: 0.96 }}
         className="shrink-0 flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient rounded-full text-sm font-semibold text-white shadow-glow-sm btn-glow disabled:opacity-60 disabled:cursor-not-allowed ripple"
       >

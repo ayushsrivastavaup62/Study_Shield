@@ -322,10 +322,10 @@ const StudyInterface = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center text-primary-900">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-12 h-12 text-primary-400 animate-spin" />
-          <p className="text-sm text-gray-400">Restoring session...</p>
+          <Loader2 className="w-12 h-12 text-primary-600 animate-spin" />
+          <p className="text-sm text-slate-600">Restoring session...</p>
         </div>
       </div>
     );
@@ -340,22 +340,22 @@ const StudyInterface = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen bg-gradient-hero flex flex-col"
+      className="min-h-screen bg-gradient-hero flex flex-col text-primary-900"
     >
-      <header className="glass-dark border-b border-white/10 px-4 sm:px-6 py-3 sticky top-0 z-40 backdrop-blur-xl">
+      <header className="glass-dark border-b border-primary-900/10 px-4 sm:px-6 py-3 sticky top-0 z-40 backdrop-blur-xl">
         <motion.div className="max-w-[1920px] mx-auto flex items-center justify-between gap-4">
           <motion.div className="flex items-center gap-3 shrink-0" whileHover={{ x: -2 }}>
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="p-2.5 hover:bg-white/10 rounded-xl transition-colors border border-white/5"
+              className="p-2.5 hover:bg-white/70 rounded-xl transition-colors border border-primary-900/10"
               aria-label="Home"
             >
               <Home className="w-5 h-5" />
             </button>
             <h1 className="text-lg sm:text-xl font-bold tracking-tight hidden sm:block">
               <span className="text-gradient">Study</span>
-              <span className="text-white">Shield</span>
+              <span className="text-primary-900">Shield</span>
             </h1>
           </motion.div>
 
@@ -376,7 +376,7 @@ const StudyInterface = () => {
               className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all border ${
                 focusMode
                   ? 'bg-gradient border-transparent text-white shadow-glow-sm'
-                  : 'glass border-white/10 hover:border-primary-500/30'
+                  : 'glass border-primary-900/10 hover:border-primary-500/30 text-primary-900'
               }`}
             >
               <Target className="w-4 h-4" />
@@ -384,11 +384,11 @@ const StudyInterface = () => {
             </motion.button>
             
             {user && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 glass rounded-full border border-white/10">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 glass rounded-full border border-primary-900/10">
                 <div className="w-5 h-5 rounded-full bg-gradient flex items-center justify-center text-[10px] font-bold text-white uppercase">
                   {user.name.charAt(0)}
                 </div>
-                <span className="text-xs font-medium text-white max-w-[80px] truncate">{user.name}</span>
+                <span className="text-xs font-medium text-primary-900 max-w-[80px] truncate">{user.name}</span>
               </div>
             )}
             
@@ -396,7 +396,7 @@ const StudyInterface = () => {
               <button
                 type="button"
                 onClick={logout}
-                className="hidden sm:block px-3 py-1.5 border border-rose-500/30 hover:border-rose-500/80 bg-rose-500/10 text-rose-300 rounded-full text-xs font-semibold transition-colors"
+                className="hidden sm:block px-3 py-1.5 border border-accent-500/25 hover:border-accent-600/70 bg-accent-100/70 text-accent-700 rounded-full text-xs font-semibold transition-colors"
               >
                 Logout
               </button>
@@ -427,7 +427,7 @@ const StudyInterface = () => {
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center text-amber-300/90 text-sm px-4 py-2"
+          className="text-center text-accent-700 text-sm px-4 py-2"
         >
           {searchError}
         </motion.p>
@@ -435,10 +435,10 @@ const StudyInterface = () => {
 
       <motion.div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden">
         <aside
-          className={`${focusMode ? 'hidden' : 'flex'} flex-col w-full lg:w-[380px] xl:w-[420px] glass-dark border-r border-white/10 shrink-0`}
+          className={`${focusMode ? 'hidden' : 'flex'} flex-col w-full lg:w-[380px] xl:w-[420px] glass-dark border-r border-primary-900/10 shrink-0`}
         >
-          <div className="px-4 py-3 border-b border-white/10">
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Study Feed</h2>
+          <div className="px-4 py-3 border-b border-primary-900/10">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Study Feed</h2>
           </div>
           <div ref={feedRef} className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[40vh] lg:max-h-none">
             {loading && videos.length === 0 ? (
@@ -461,15 +461,21 @@ const StudyInterface = () => {
                 <motion.div ref={loadMoreRef} className="py-4 flex justify-center">
                   {loadingMore && <Loader2 className="w-6 h-6 text-primary-400 animate-spin" />}
                   {!loadingMore && !nextPageToken && hasSearched && (
-                    <p className="text-xs text-gray-600">You&apos;re all caught up</p>
+                    <p className="text-xs text-slate-500">You&apos;re all caught up</p>
                   )}
                 </motion.div>
               </>
             ) : (
-              <div className="text-center text-gray-500 py-12">
-                <Search className="w-12 h-12 mx-auto mb-4 opacity-40" />
-                <p className="font-medium text-gray-400 mb-1">Search to load videos</p>
-                <p className="text-sm text-gray-600">
+              <div className="text-center text-slate-500 py-12 px-4">
+                <motion.div
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-28 h-28 mx-auto mb-5 rounded-[2rem] bg-white/70 border border-primary-900/10 cartoon-blob flex items-center justify-center"
+                >
+                  <Search className="w-12 h-12 text-primary-600" />
+                </motion.div>
+                <p className="font-semibold text-primary-900 mb-1">Search to load videos</p>
+                <p className="text-sm text-slate-500">
                   Enter a topic and press Search or Enter — no automatic requests while typing.
                 </p>
               </div>
@@ -484,20 +490,20 @@ const StudyInterface = () => {
               animate={{ opacity: 1, y: 0 }}
               className="w-full max-w-5xl"
             >
-              <div className="relative rounded-2xl overflow-hidden glass aspect-video border border-white/10 shadow-glow">
+              <div className="relative rounded-2xl overflow-hidden glass aspect-video border border-primary-900/10 shadow-glow">
                 {(isBlurred || classifying) && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="absolute inset-0 backdrop-blur-2xl bg-black/60 z-10"
+                    className="absolute inset-0 backdrop-blur-2xl bg-primary-900/55 z-10"
                   />
                 )}
 
                 {classifying && (
                   <motion.div className="absolute inset-0 z-[15] flex items-center justify-center">
                     <div className="flex flex-col items-center gap-3">
-                      <Loader2 className="w-10 h-10 text-primary-400 animate-spin" />
-                      <p className="text-sm text-gray-400">Analyzing content...</p>
+                      <Loader2 className="w-10 h-10 text-white animate-spin" />
+                      <p className="text-sm text-white/80">Analyzing content...</p>
                     </div>
                   </motion.div>
                 )}
@@ -521,10 +527,10 @@ const StudyInterface = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="mt-4 glass rounded-2xl p-5 border border-white/10"
+                className="mt-4 glass rounded-2xl p-5 border border-primary-900/10"
               >
-                <h2 className="text-lg sm:text-xl font-semibold mb-1">{selectedVideo.title}</h2>
-                <p className="text-gray-500 text-sm">{selectedVideo.channelTitle}</p>
+                <h2 className="text-lg sm:text-xl font-semibold mb-1 text-primary-900">{selectedVideo.title}</h2>
+                <p className="text-slate-500 text-sm">{selectedVideo.channelTitle}</p>
               </motion.div>
             </motion.div>
           ) : (
@@ -536,12 +542,13 @@ const StudyInterface = () => {
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 4, repeat: Infinity }}
-                className="w-28 h-28 bg-gradient rounded-full flex items-center justify-center mx-auto mb-8 shadow-glow btn-glow"
+                className="relative w-32 h-32 bg-white/75 rounded-[2.25rem] flex items-center justify-center mx-auto mb-8 shadow-glow btn-glow cartoon-blob"
               >
-                <Play className="w-14 h-14 text-white fill-white ml-1" />
+                <div className="absolute -right-5 -top-3 h-12 w-12 rounded-2xl bg-accent-200 border border-primary-900/10" />
+                <Play className="relative w-14 h-14 text-primary-800 fill-primary-800 ml-1" />
               </motion.div>
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2">Ready to Study?</h2>
-              <p className="text-gray-500 max-w-sm mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-primary-900">Ready to Study?</h2>
+              <p className="text-slate-600 max-w-sm mx-auto">
                 Search for a topic, then pick a video — AI will keep only educational content playing.
               </p>
             </motion.div>

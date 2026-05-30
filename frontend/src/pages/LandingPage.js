@@ -49,31 +49,31 @@ const LandingPage = () => {
       icon: Brain,
       title: 'AI Educational Filter',
       desc: 'Real-time AI classification keeps only educational content in your feed.',
-      gradient: 'from-cyan-500/20 to-blue-500/10',
+      gradient: 'from-primary-200/60 to-white/30',
     },
     {
       icon: Target,
       title: 'Focus Mode',
       desc: 'Strip away distractions with a minimal, study-first interface.',
-      gradient: 'from-violet-500/20 to-purple-500/10',
+      gradient: 'from-primary-100/70 to-white/30',
     },
     {
       icon: Ban,
       title: 'Smart Blocking',
       desc: 'Non-educational videos are instantly blurred and blocked during study time.',
-      gradient: 'from-rose-500/20 to-red-500/10',
+      gradient: 'from-accent-200/60 to-white/30',
     },
     {
       icon: BarChart3,
       title: 'Study Analytics',
       desc: 'Track sessions, videos watched, and blocked content over time.',
-      gradient: 'from-emerald-500/20 to-teal-500/10',
+      gradient: 'from-[#dff7ee]/70 to-white/30',
     },
     {
       icon: Clock,
       title: 'Productivity Timer',
       desc: 'Pomodoro-style presets — 25 min, 45 min, 1 hour, or custom.',
-      gradient: 'from-amber-500/20 to-orange-500/10',
+      gradient: 'from-[#fff0c8]/80 to-white/30',
     },
   ];
 
@@ -84,31 +84,18 @@ const LandingPage = () => {
     { value: '4.9/5', label: 'User Rating' },
   ];
 
-  const floatingOrbs = [
-    { className: 'top-1/4 left-[10%] w-72 h-72 bg-primary-500/25', delay: 0 },
-    { className: 'bottom-1/3 right-[8%] w-96 h-96 bg-accent-500/20', delay: 2 },
-    { className: 'top-1/2 right-1/4 w-48 h-48 bg-pink-500/15', delay: 1 },
-  ];
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
-      className="min-h-screen bg-gradient-hero overflow-hidden"
+      className="min-h-screen bg-gradient-hero overflow-hidden text-primary-900"
     >
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {floatingOrbs.map((orb, i) => (
-          <motion.div
-            key={i}
-            className={`absolute rounded-full blur-3xl animate-float ${orb.className}`}
-            style={{ animationDelay: `${orb.delay}s` }}
-            animate={{ opacity: [0.4, 0.7, 0.4] }}
-            transition={{ duration: 6, repeat: Infinity, delay: orb.delay }}
-          />
-        ))}
-        <motion.div className="absolute inset-0 opacity-50 pointer-events-none bg-white/[0.02]" />
+        <div className="absolute top-28 left-[7%] h-40 w-52 rotate-[-8deg] rounded-[2rem] bg-primary-200/35 blur-2xl" />
+        <div className="absolute bottom-40 right-[8%] h-44 w-64 rotate-[10deg] rounded-[2rem] bg-accent-200/40 blur-2xl" />
+        <div className="absolute right-[18%] top-48 h-40 w-40 dot-field opacity-45" />
       </div>
 
       <Navbar
@@ -120,26 +107,28 @@ const LandingPage = () => {
       />
 
       {/* Hero */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-32 sm:pt-40 pb-24 text-center">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-32 sm:pt-40 pb-20">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
+          <div className="grid lg:grid-cols-[0.95fr_1.05fr] gap-12 lg:gap-16 items-center">
+          <div className="text-center lg:text-left">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
             className="inline-flex items-center gap-2 px-4 py-2 glass rounded-full mb-8 border border-primary-500/20"
           >
-            <Zap className="w-4 h-4 text-amber-400" />
-            <span className="text-sm text-gray-300">AI-Powered Study Sanctuary</span>
-            <Sparkles className="w-3.5 h-3.5 text-primary-400" />
+            <Zap className="w-4 h-4 text-accent-500" />
+            <span className="text-sm font-semibold text-primary-800">AI-Powered Study Sanctuary</span>
+            <Sparkles className="w-3.5 h-3.5 text-primary-500" />
           </motion.div>
 
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight tracking-tight">
             <motion.span
-              className="text-gradient block"
+              className="text-primary-900 block"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
@@ -147,7 +136,7 @@ const LandingPage = () => {
               Master Your Focus.
             </motion.span>
             <motion.span
-              className="text-white block mt-1"
+              className="text-gradient block mt-1"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
@@ -160,7 +149,7 @@ const LandingPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="text-lg sm:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed"
+            className="text-lg sm:text-xl text-slate-600 mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed"
           >
             Block distractions. Filter with AI. Study with purpose. Your future self will thank you for every focused minute.
           </motion.p>
@@ -169,7 +158,7 @@ const LandingPage = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4"
           >
             <motion.button
               type="button"
@@ -185,20 +174,63 @@ const LandingPage = () => {
             </motion.button>
           </motion.div>
 
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.35, duration: 0.8 }}
+            className="relative min-h-[320px] sm:min-h-[410px]"
+          >
+            <div className="absolute inset-x-4 top-12 h-64 sm:h-80 dot-field opacity-60" />
+            <motion.div
+              animate={{ y: [0, -12, 0] }}
+              transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute left-[12%] top-[28%] w-28 sm:w-36 h-44 sm:h-56 bg-accent-400 rounded-[2rem] cartoon-blob rotate-[-12deg]"
+            />
+            <motion.div
+              animate={{ y: [0, 10, 0] }}
+              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+              className="absolute right-[12%] top-[18%] w-40 sm:w-56 h-52 sm:h-72 bg-white rounded-[2rem] cartoon-blob rotate-[8deg]"
+            >
+              <div className="absolute top-6 left-5 right-5 h-4 rounded-full bg-primary-100" />
+              <div className="absolute top-14 left-5 right-10 h-3 rounded-full bg-primary-200" />
+              <div className="absolute top-24 left-5 right-16 h-3 rounded-full bg-accent-200" />
+              <div className="absolute bottom-7 left-6 right-6 h-16 rounded-2xl bg-primary-50 border border-primary-900/10" />
+            </motion.div>
+            <motion.div
+              animate={{ y: [0, -8, 0], rotate: [-7, -3, -7] }}
+              transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute left-[22%] bottom-[16%] w-44 sm:w-56 rounded-[1.75rem] bg-primary-700 p-5 text-white cartoon-blob"
+            >
+              <BookOpen className="w-10 h-10 mb-5 text-accent-200" />
+              <div className="h-3 w-28 rounded-full bg-white/80 mb-2" />
+              <div className="h-3 w-20 rounded-full bg-white/45" />
+            </motion.div>
+            <motion.div
+              animate={{ y: [0, 9, 0], rotate: [8, 12, 8] }}
+              transition={{ duration: 5.2, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+              className="absolute right-[8%] bottom-[18%] w-24 sm:w-32 h-24 sm:h-32 rounded-[2rem] bg-[#ffd9cc] cartoon-blob flex items-center justify-center"
+            >
+              <Shield className="w-10 sm:w-12 h-10 sm:h-12 text-primary-800" />
+            </motion.div>
+          </motion.div>
+          </div>
+
           {/* Floating decorative elements */}
           <motion.div
             animate={{ y: [0, -12, 0] }}
             transition={{ duration: 5, repeat: Infinity }}
-            className="hidden lg:block absolute top-40 left-8 glass rounded-2xl p-4 border border-white/10"
+            className="hidden lg:block absolute top-40 left-8 glass rounded-2xl p-4 border border-primary-900/10"
           >
-            <BookOpen className="w-8 h-8 text-primary-400" />
+            <BookOpen className="w-8 h-8 text-primary-600" />
           </motion.div>
           <motion.div
             animate={{ y: [0, 12, 0] }}
             transition={{ duration: 6, repeat: Infinity, delay: 1 }}
-            className="hidden lg:block absolute top-52 right-12 glass rounded-2xl p-4 border border-white/10"
+            className="hidden lg:block absolute top-52 right-12 glass rounded-2xl p-4 border border-primary-900/10"
           >
-            <Shield className="w-8 h-8 text-accent-400" />
+            <Shield className="w-8 h-8 text-accent-500" />
           </motion.div>
         </motion.div>
 
@@ -216,10 +248,10 @@ const LandingPage = () => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.08 }}
               whileHover={{ y: -4, scale: 1.02 }}
-              className="glass rounded-2xl p-5 sm:p-6 border border-white/10 hover:border-primary-500/30 transition-all duration-300"
+              className="glass rounded-2xl p-5 sm:p-6 border border-primary-900/10 hover:border-primary-500/30 transition-all duration-300"
             >
               <motion.div className="text-2xl sm:text-3xl font-bold text-gradient mb-1">{stat.value}</motion.div>
-              <div className="text-gray-500 text-xs sm:text-sm">{stat.label}</div>
+              <div className="text-slate-500 text-xs sm:text-sm">{stat.label}</div>
             </motion.div>
           ))}
         </motion.div>
@@ -236,7 +268,7 @@ const LandingPage = () => {
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
             <span className="text-gradient">Powerful Features</span>
           </h2>
-          <p className="text-gray-400 text-lg max-w-xl mx-auto">
+          <p className="text-slate-600 text-lg max-w-xl mx-auto">
             Everything engineered for deep, distraction-free study sessions
           </p>
         </motion.div>
@@ -256,12 +288,12 @@ const LandingPage = () => {
               <div className="relative">
                 <motion.div
                   whileHover={{ rotate: 8, scale: 1.1 }}
-                  className="w-14 h-14 rounded-2xl glass flex items-center justify-center mb-5 border border-white/10"
+                  className="w-14 h-14 rounded-2xl glass flex items-center justify-center mb-5 border border-primary-900/10"
                 >
-                  <feature.icon className="w-7 h-7 text-primary-400" />
+                  <feature.icon className="w-7 h-7 text-primary-600" />
                 </motion.div>
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{feature.desc}</p>
+                <h3 className="text-xl font-semibold mb-2 text-primary-900">{feature.title}</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">{feature.desc}</p>
               </div>
             </motion.div>
           ))}
@@ -274,19 +306,19 @@ const LandingPage = () => {
           initial={{ opacity: 0, scale: 0.96 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="glass-dark rounded-3xl p-8 sm:p-14 text-center border border-white/10 shadow-glow relative overflow-hidden"
+          className="glass-dark rounded-3xl p-8 sm:p-14 text-center border border-primary-900/10 shadow-glow relative overflow-hidden"
         >
           <motion.div
-            className="absolute -top-24 -right-24 w-64 h-64 bg-primary-500/10 rounded-full blur-3xl"
+            className="absolute -top-20 -right-16 w-72 h-40 bg-accent-200/50 rounded-[3rem] blur-2xl"
             animate={{ scale: [1, 1.2, 1] }}
             transition={{ duration: 8, repeat: Infinity }}
           />
           <div className="relative">
-            <Shield className="w-16 sm:w-20 h-16 sm:h-20 text-accent-400 mx-auto mb-6" />
+            <Shield className="w-16 sm:w-20 h-16 sm:h-20 text-accent-500 mx-auto mb-6" />
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient">About StudyShield</span>
             </h2>
-            <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
+            <p className="text-slate-600 text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
               StudyShield is built for students who want YouTube without the rabbit holes. Our AI analyzes content in real time,
               blocking entertainment and keeping you locked on educational material that moves you toward your goals.
             </p>
@@ -299,7 +331,7 @@ const LandingPage = () => {
               {['Gemini AI', 'OpenAI GPT', 'Real-time Analysis', 'Smart Filtering'].map((tag) => (
                 <span
                   key={tag}
-                  className="px-4 py-2 glass rounded-full text-sm border border-white/10 hover:border-primary-500/40 transition-colors"
+                  className="px-4 py-2 glass rounded-full text-sm text-primary-800 border border-primary-900/10 hover:border-primary-500/40 transition-colors"
                 >
                   {tag}
                 </span>
@@ -316,7 +348,7 @@ const LandingPage = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-2xl sm:text-3xl font-bold mb-4">Ready to enter focus mode?</h3>
+          <h3 className="text-2xl sm:text-3xl font-bold mb-4 text-primary-900">Ready to enter focus mode?</h3>
           <motion.button
             type="button"
             whileHover={{ scale: 1.05 }}
