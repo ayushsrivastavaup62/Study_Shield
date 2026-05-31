@@ -12,6 +12,7 @@ import {
   Sparkles,
   BookOpen,
   ArrowRight,
+  Play,
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -99,6 +100,7 @@ const LandingPage = () => {
       </div>
 
       <Navbar
+        showTimer={false}
         onGetStarted={handleStudyClick}
         onLoginClick={() => {
           setAuthModalTab('login');
@@ -183,6 +185,17 @@ const LandingPage = () => {
             className="relative min-h-[320px] sm:min-h-[410px]"
           >
             <div className="absolute inset-x-4 top-12 h-64 sm:h-80 dot-field opacity-60" />
+            <motion.div
+              animate={{ y: [0, -10, 0], rotate: [-2, 2, -2] }}
+              transition={{ duration: 5.8, repeat: Infinity, ease: 'easeInOut', delay: 0.15 }}
+              className="absolute right-[20%] top-[44%] z-10 w-36 sm:w-48 h-24 sm:h-32 rounded-[1.75rem] bg-white/80 backdrop-blur-xl border border-primary-900/10 shadow-glow-sm flex items-center justify-center rotate-[-3deg]"
+              aria-hidden
+            >
+              <div className="absolute inset-3 rounded-[1.35rem] bg-accent-400/90 border border-accent-500/25" />
+              <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/92 flex items-center justify-center shadow-glow-sm">
+                <Play className="w-7 h-7 sm:w-8 sm:h-8 text-primary-900 fill-primary-900 ml-1" />
+              </div>
+            </motion.div>
             <motion.div
               animate={{ y: [0, -12, 0] }}
               transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }}

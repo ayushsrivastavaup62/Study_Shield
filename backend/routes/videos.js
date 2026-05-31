@@ -3,8 +3,19 @@ const youtubeService = require('../services/youtubeService');
 const aiService = require('../services/aiService');
 const WatchedVideo = require('../models/WatchedVideo');
 const BlockedVideo = require('../models/BlockedVideo');
+const { protect } = require('../middleware/auth');
 
 const router = express.Router();
+
+const parseDurationMinutes = (duration) => {
+  if (!duration || typeof duration !== 'string') return 0;
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const hours = Number(match[1] || 0);
+  const minutes = Number(match[2] || 0);
+  const seconds = Number(match[3] || 0);
+  return Math.max(1, Math.round(hours * 60 + minutes + seconds / 60));
+};
 
 router.get('/search', async (req, res) => {
   try {
@@ -44,23 +55,24 @@ router.get('/details/:videoId', async (req, res) => {
   }
 });
 
-router.post('/classify', async (req, res) => {
+router.post('/classify', protect, async (req, res) => {
   try {
-    const { videoData, userId } = req.body;
+    const { videoData } = req.body;
     
     const isEducational = await aiService.classifyContent(videoData);
 
     try {
       if (isEducational) {
         await WatchedVideo.create({
-          userId,
+          userId: req.user._id,
           videoId: videoData.videoId,
           title: videoData.title,
-          category: videoData.categoryId,
+          category: videoData.categoryId || videoData.category || 'General Study',
+          watchDuration: parseDurationMinutes(videoData.duration),
         });
       } else {
         await BlockedVideo.create({
-          userId,
+          userId: req.user._id,
           videoId: videoData.videoId,
           title: videoData.title,
           reason: 'Non-educational content',

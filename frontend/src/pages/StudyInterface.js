@@ -284,7 +284,6 @@ const StudyInterface = () => {
       console.log('[FRONTEND] Submitting content for AI classification:', details.title);
       const classifyResponse = await axios.post(`${API}/api/videos/classify`, {
         videoData: details,
-        userId: user?.id || user?._id || 'demo-user',
       });
 
       if (!classifyResponse.data?.success) {

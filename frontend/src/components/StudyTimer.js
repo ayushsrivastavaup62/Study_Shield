@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Play, Pause, RotateCcw, ChevronDown } from 'lucide-react';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const DURATION_KEY = 'studyshield-timer-duration';
 const DEFAULT_DURATION = 25 * 60;
+const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const PRESETS = [
   { label: '25 min', seconds: 25 * 60 },
@@ -25,6 +28,7 @@ const readDuration = () => {
 };
 
 const StudyTimer = ({ compact = false, onPresetChange }) => {
+  const { user } = useAuth();
   const [duration, setDuration] = useState(readDuration);
   const [remaining, setRemaining] = useState(readDuration);
   const [isRunning, setIsRunning] = useState(false);
@@ -35,6 +39,7 @@ const StudyTimer = ({ compact = false, onPresetChange }) => {
 
   const dropdownRef = useRef(null);
   const intervalRef = useRef(null);
+  const completionLoggedRef = useRef(false);
 
   const clearTimerInterval = useCallback(() => {
     if (intervalRef.current) {
@@ -46,6 +51,7 @@ const StudyTimer = ({ compact = false, onPresetChange }) => {
   const applyDuration = useCallback(
     (seconds) => {
       clearTimerInterval();
+      completionLoggedRef.current = false;
       setIsRunning(false);
       setDuration(seconds);
       setRemaining(seconds);
@@ -58,10 +64,29 @@ const StudyTimer = ({ compact = false, onPresetChange }) => {
 
   const handleReset = useCallback(() => {
     clearTimerInterval();
+    completionLoggedRef.current = false;
     setIsRunning(false);
     setRemaining(duration);
     setResetKey((k) => k + 1);
   }, [clearTimerInterval, duration]);
+
+  const recordCompletedSession = useCallback(async () => {
+    if (!user || completionLoggedRef.current) return;
+
+    completionLoggedRef.current = true;
+    const minutes = Math.max(1, Math.round(duration / 60));
+    const focusScore = Math.min(100, 55 + Math.min(35, Math.floor(minutes / 5) * 5));
+
+    try {
+      await axios.post(`${API}/api/sessions`, {
+        duration: minutes,
+        videosWatched: [],
+        focusScore,
+      });
+    } catch (error) {
+      console.warn('[TIMER] Completed session analytics log skipped:', error.message);
+    }
+  }, [duration, user]);
 
   useEffect(() => {
     clearTimerInterval();
@@ -73,6 +98,7 @@ const StudyTimer = ({ compact = false, onPresetChange }) => {
         if (prev <= 1) {
           clearTimerInterval();
           setIsRunning(false);
+          recordCompletedSession();
           return 0;
         }
         return prev - 1;
@@ -80,7 +106,7 @@ const StudyTimer = ({ compact = false, onPresetChange }) => {
     }, 1000);
 
     return clearTimerInterval;
-  }, [isRunning, clearTimerInterval]);
+  }, [isRunning, clearTimerInterval, recordCompletedSession]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -177,6 +203,7 @@ const StudyTimer = ({ compact = false, onPresetChange }) => {
         onClick={() => {
           if (remaining <= 0) {
             handleReset();
+            completionLoggedRef.current = false;
           }
           setIsRunning((r) => !r);
         }}

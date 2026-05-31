@@ -1,20 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { BookOpen, Menu, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { BarChart3, BookOpen, ChevronDown, LogOut, Menu, X } from 'lucide-react';
 import StudyTimer from './StudyTimer';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
+  const accountRef = useRef(null);
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 24);
+      setScrolled(window.scrollY > 10);
 
       const sections = ['features', 'about'];
       let current = '';
@@ -33,7 +36,27 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (accountRef.current && !accountRef.current.contains(event.target)) {
+        setAccountOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const scrollTo = (id) => {
+    if (location.pathname !== '/') {
+      navigate('/');
+      setMobileOpen(false);
+      setTimeout(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+      return;
+    }
+
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -52,6 +75,12 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
     setMobileOpen(false);
   };
 
+  const goDashboard = () => {
+    navigate('/dashboard');
+    setMobileOpen(false);
+    setAccountOpen(false);
+  };
+
   const navLinkClass = (section) =>
     `relative px-3 py-2 text-sm font-medium transition-colors ${
       activeSection === section ? 'text-primary-900' : 'text-slate-600 hover:text-primary-900'
@@ -61,11 +90,14 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
     <motion.nav
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled
-          ? 'glass-dark shadow-lg border-b border-primary-900/10 backdrop-blur-xl'
-          : 'bg-[#e9e5fb]/70 border-b border-primary-900/5 backdrop-blur-md'
-      }`}
+      className="fixed top-0 left-0 right-0 z-50 border-b transition-[background-color,box-shadow,backdrop-filter,border-color] duration-500 ease-out"
+      style={{
+        backgroundColor: scrolled ? 'rgba(232, 226, 250, 0.9)' : 'rgba(233, 229, 251, 0.72)',
+        borderColor: scrolled ? 'rgba(17, 25, 54, 0.1)' : 'rgba(17, 25, 54, 0.05)',
+        backdropFilter: scrolled ? 'blur(22px)' : 'blur(12px)',
+        WebkitBackdropFilter: scrolled ? 'blur(22px)' : 'blur(12px)',
+        boxShadow: scrolled ? '0 14px 36px rgba(42, 35, 92, 0.11)' : '0 0 0 rgba(42, 35, 92, 0)',
+      }}
     >
       <motion.div
         className="absolute inset-0 pointer-events-none"
@@ -83,8 +115,8 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
 
       <motion.div
         className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative"
-        animate={{ paddingTop: scrolled ? '0.65rem' : undefined, paddingBottom: scrolled ? '0.65rem' : undefined }}
-        transition={{ duration: 0.3 }}
+        animate={{ paddingTop: scrolled ? '0.8rem' : '1rem', paddingBottom: scrolled ? '0.8rem' : '1rem' }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
       >
         <button
           type="button"
@@ -105,11 +137,7 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
           </span>
         </button>
 
-        <motion.div
-          className="hidden lg:flex items-center gap-2"
-          animate={{ gap: scrolled ? '0.75rem' : '1.5rem' }}
-          transition={{ duration: 0.3 }}
-        >
+        <motion.div className="hidden lg:flex items-center gap-5">
           <button type="button" onClick={() => scrollTo('features')} className={navLinkClass('features')}>
             Features
             {activeSection === 'features' && (
@@ -126,24 +154,54 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
           
           {user ? (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 glass rounded-full border border-primary-900/10">
-                <div className="w-6 h-6 rounded-full bg-gradient flex items-center justify-center text-xs font-bold text-white uppercase">
-                  {user.name.charAt(0)}
-                </div>
-                <span className="text-sm font-medium text-primary-900 max-w-[100px] truncate">{user.name}</span>
-              </div>
-              <motion.button
+              <button
                 type="button"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => {
-                  logout();
-                  setMobileOpen(false);
-                }}
-                className="px-4 py-2 border border-accent-500/25 hover:border-accent-600/70 bg-accent-100/70 text-accent-700 rounded-full text-sm font-medium transition-colors"
+                onClick={goDashboard}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-primary-900 transition-colors"
               >
-                Logout
-              </motion.button>
+                <BarChart3 className="w-4 h-4" />
+                Dashboard
+              </button>
+              <div ref={accountRef} className="relative">
+                <motion.button
+                  type="button"
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setAccountOpen((open) => !open)}
+                  className="flex items-center gap-2 px-3 py-1.5 glass rounded-full border border-primary-900/10 hover:border-primary-500/30 transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-gradient flex items-center justify-center text-xs font-bold text-white uppercase">
+                    {user.name.charAt(0)}
+                  </div>
+                  <span className="text-sm font-medium text-primary-900 max-w-[110px] truncate">{user.name}</span>
+                  <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${accountOpen ? 'rotate-180' : ''}`} />
+                </motion.button>
+
+                <AnimatePresence>
+                  {accountOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute right-0 top-full mt-3 w-44 glass-dark rounded-2xl border border-primary-900/10 p-2 shadow-glow-sm"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          logout();
+                          setMobileOpen(false);
+                          setAccountOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-accent-700 hover:bg-accent-100/80 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Logout
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           ) : (
             <motion.button
@@ -184,22 +242,42 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
           {showTimer && <StudyTimer compact />}
           {user ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-3 px-4 py-3 glass rounded-2xl border border-primary-900/10">
-                <div className="w-8 h-8 rounded-full bg-gradient flex items-center justify-center font-bold text-white uppercase">
-                  {user.name.charAt(0)}
-                </div>
-                <span className="font-semibold text-primary-900 truncate">{user.name}</span>
-              </div>
+              <button type="button" onClick={goDashboard} className="flex w-full items-center gap-2 py-2 text-slate-700">
+                <BarChart3 className="w-4 h-4" />
+                Dashboard
+              </button>
               <button
                 type="button"
-                onClick={() => {
-                  logout();
-                  setMobileOpen(false);
-                }}
-                className="w-full py-3 bg-accent-100 text-accent-700 border border-accent-500/25 rounded-full font-semibold hover:bg-accent-200 transition-colors"
+                onClick={() => setAccountOpen((open) => !open)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 glass rounded-2xl border border-primary-900/10"
               >
-                Logout
+                <span className="flex items-center gap-3 min-w-0">
+                  <span className="w-8 h-8 rounded-full bg-gradient flex items-center justify-center font-bold text-white uppercase shrink-0">
+                    {user.name.charAt(0)}
+                  </span>
+                  <span className="font-semibold text-primary-900 truncate">{user.name}</span>
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${accountOpen ? 'rotate-180' : ''}`} />
               </button>
+              <AnimatePresence>
+                {accountOpen && (
+                  <motion.button
+                    type="button"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    onClick={() => {
+                      logout();
+                      setMobileOpen(false);
+                      setAccountOpen(false);
+                    }}
+                    className="flex w-full items-center justify-center gap-2 py-3 bg-accent-100 text-accent-700 border border-accent-500/25 rounded-full font-semibold hover:bg-accent-200 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </motion.button>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
             <button type="button" onClick={handleLoginClick} className="w-full py-3 bg-gradient rounded-full font-semibold">
