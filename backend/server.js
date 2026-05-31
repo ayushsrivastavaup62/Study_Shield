@@ -103,6 +103,7 @@ app.use('/api/ai', require('./routes/ai'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/notes', require('./routes/notes'));
+app.use('/api/quizzes', require('./routes/quizzes'));
 app.use('/api/user', require('./routes/user'));
 
 // Health check route

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import YouTube from 'react-youtube';
-import { BookOpenText, FileText, Home, Loader2, Play, Search, Target } from 'lucide-react';
+import { BookOpenText, FileText, HelpCircle, Home, Loader2, Play, Search, Target } from 'lucide-react';
 import axios from 'axios';
 import StudyTimer from '../components/StudyTimer';
 import SearchBar from '../components/SearchBar';
@@ -10,6 +10,7 @@ import QuotaExceededBanner from '../components/QuotaExceededBanner';
 import VideoCard, { VideoCardSkeleton } from '../components/VideoCard';
 import BlockedOverlay from '../components/BlockedOverlay';
 import NotesEditorModal from '../components/NotesEditorModal';
+import QuizModal from '../components/QuizModal';
 import {
   getCachedSearch,
   setCachedSearch,
@@ -55,6 +56,14 @@ const StudyInterface = () => {
   const [notesPreviewOpen, setNotesPreviewOpen] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesStatus, setNotesStatus] = useState(null);
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [generatingQuiz, setGeneratingQuiz] = useState(false);
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [quizAnswers, setQuizAnswers] = useState([]);
+  const [quizResult, setQuizResult] = useState(null);
+  const [savingQuiz, setSavingQuiz] = useState(false);
+  const [quizSaved, setQuizSaved] = useState(false);
+  const [quizStatus, setQuizStatus] = useState(null);
 
   const feedRef = useRef(null);
 
@@ -229,22 +238,6 @@ const StudyInterface = () => {
     fetchVideos(activeQueryRef.current, nextPageToken, true);
   }, [loadingMore, nextPageToken, loading, quotaExceeded, fetchVideos]);
 
-  useEffect(() => {
-    const sentinel = loadMoreRef.current;
-    const root = feedRef.current;
-    if (!sentinel || !root || !hasSearched) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore();
-      },
-      { root, rootMargin: '120px', threshold: 0.1 }
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [loadMore, videos.length, nextPageToken, hasSearched]);
-
   const handleVideoSelect = async (video) => {
     const { videoId } = video;
 
@@ -260,6 +253,12 @@ const StudyInterface = () => {
       setShowNotesSuccess(false);
       setNotesPreviewOpen(false);
       setNotesStatus(null);
+      setQuizOpen(false);
+      setQuizQuestions([]);
+      setQuizAnswers([]);
+      setQuizResult(null);
+      setQuizSaved(false);
+      setQuizStatus(null);
       return;
     }
 
@@ -270,6 +269,12 @@ const StudyInterface = () => {
     setShowNotesSuccess(false);
     setNotesPreviewOpen(false);
     setNotesStatus(null);
+    setQuizOpen(false);
+    setQuizQuestions([]);
+    setQuizAnswers([]);
+    setQuizResult(null);
+    setQuizSaved(false);
+    setQuizStatus(null);
     setIsBlurred(true);
     setShowBlockPopup(false);
     setClassifying(true);
@@ -380,6 +385,92 @@ const StudyInterface = () => {
       setNotesStatus(error.response?.data?.message || 'Could not save notes.');
     } finally {
       setSavingNotes(false);
+    }
+  };
+
+  const handleGenerateQuiz = async () => {
+    if (!selectedVideo || !isSelectedEducational || isBlurred || classifying) return;
+
+    setGeneratingQuiz(true);
+    setQuizOpen(true);
+    setQuizStatus(null);
+    setQuizQuestions([]);
+    setQuizAnswers([]);
+    setQuizResult(null);
+    setQuizSaved(false);
+
+    try {
+      const videoData = selectedVideoDetails || selectedVideo;
+      const response = await axios.post(`${API}/api/quizzes/generate`, {
+        videoData: {
+          ...videoData,
+          videoId: videoData.videoId || selectedVideo.videoId,
+          title: videoData.title || selectedVideo.title,
+          channelTitle: videoData.channelTitle || selectedVideo.channelTitle,
+          thumbnail: videoData.thumbnail || selectedVideo.thumbnail,
+          videoUrl: `https://www.youtube.com/watch?v=${videoData.videoId || selectedVideo.videoId}`,
+        },
+        notes: generatedNotes,
+        isEducational: true,
+      });
+
+      const questions = response.data.questions || [];
+      setQuizQuestions(questions);
+      setQuizAnswers(Array(questions.length).fill(''));
+    } catch (error) {
+      setQuizOpen(false);
+      setQuizStatus(error.response?.data?.message || 'Could not generate quiz right now.');
+    } finally {
+      setGeneratingQuiz(false);
+    }
+  };
+
+  const handleQuizAnswer = (questionIndex, answer) => {
+    setQuizAnswers((prev) => {
+      const next = [...prev];
+      next[questionIndex] = answer;
+      return next;
+    });
+  };
+
+  const handleSubmitQuiz = async () => {
+    try {
+      const response = await axios.post(`${API}/api/quizzes/submit`, {
+        questions: quizQuestions,
+        userAnswers: quizAnswers,
+      });
+      setQuizResult(response.data);
+      setQuizSaved(false);
+    } catch (error) {
+      setQuizStatus(error.response?.data?.message || 'Could not submit quiz right now.');
+    }
+  };
+
+  const handleSaveQuiz = async () => {
+    if (!quizResult || !quizQuestions.length) return;
+
+    setSavingQuiz(true);
+    setQuizStatus(null);
+    try {
+      const videoData = selectedVideoDetails || selectedVideo;
+      await axios.post(`${API}/api/quizzes/save`, {
+        videoData: {
+          ...videoData,
+          videoId: videoData.videoId || selectedVideo.videoId,
+          title: videoData.title || selectedVideo.title,
+          channelTitle: videoData.channelTitle || selectedVideo.channelTitle,
+          videoUrl: `https://www.youtube.com/watch?v=${videoData.videoId || selectedVideo.videoId}`,
+        },
+        questions: quizQuestions,
+        userAnswers: quizAnswers,
+        result: quizResult,
+      });
+      setQuizSaved(true);
+      setQuizStatus('Quiz result saved successfully.');
+    } catch (error) {
+      setQuizStatus(error.response?.data?.message || 'Could not save quiz result.');
+    } finally {
+      setSavingQuiz(false);
     }
   };
 
@@ -541,6 +632,16 @@ const StudyInterface = () => {
                 ))}
                 <motion.div ref={loadMoreRef} className="py-4 flex justify-center">
                   {loadingMore && <Loader2 className="w-6 h-6 text-primary-400 animate-spin" />}
+                  {!loadingMore && nextPageToken && (
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      disabled={loading || quotaExceeded}
+                      className="px-4 py-2 rounded-full glass border border-primary-900/10 text-xs font-semibold text-primary-900 hover:border-primary-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Load More
+                    </button>
+                  )}
                   {!loadingMore && !nextPageToken && hasSearched && (
                     <p className="text-xs text-slate-500">You&apos;re all caught up</p>
                   )}
@@ -625,7 +726,19 @@ const StudyInterface = () => {
                       {generatingNotes ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                       {generatingNotes ? 'Generating Notes...' : 'Generate Notes'}
                     </motion.button>
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleGenerateQuiz}
+                      disabled={generatingQuiz}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-3 glass rounded-full text-sm font-bold border border-primary-900/10 text-primary-900 hover:border-primary-500/30 transition-colors disabled:opacity-70"
+                    >
+                      {generatingQuiz ? <Loader2 className="w-4 h-4 animate-spin" /> : <HelpCircle className="w-4 h-4" />}
+                      {generatingQuiz ? 'Generating Quiz...' : 'Generate Quiz'}
+                    </motion.button>
                     {notesStatus && <p className="text-sm text-primary-700">{notesStatus}</p>}
+                    {quizStatus && <p className="text-sm text-primary-700">{quizStatus}</p>}
                   </div>
                 )}
               </motion.div>
@@ -702,6 +815,20 @@ const StudyInterface = () => {
         saving={savingNotes}
         onClose={() => setNotesPreviewOpen(false)}
         onSave={handleSaveNotes}
+      />
+
+      <QuizModal
+        isOpen={quizOpen}
+        loading={generatingQuiz}
+        questions={quizQuestions}
+        userAnswers={quizAnswers}
+        result={quizResult}
+        saving={savingQuiz}
+        saved={quizSaved}
+        onAnswer={handleQuizAnswer}
+        onSubmit={handleSubmitQuiz}
+        onSave={handleSaveQuiz}
+        onClose={() => setQuizOpen(false)}
       />
     </motion.div>
   );

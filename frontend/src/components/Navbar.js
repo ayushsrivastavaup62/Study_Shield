@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, BookOpen, BookOpenText, ChevronDown, LogOut, Menu, X } from 'lucide-react';
+import { BarChart3, BookOpen, BookOpenText, ChevronDown, HelpCircle, Home, LogOut, Menu, X } from 'lucide-react';
 import StudyTimer from './StudyTimer';
 import { useAuth } from '../context/AuthContext';
 
@@ -81,8 +81,20 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
     setAccountOpen(false);
   };
 
+  const goHome = () => {
+    navigate('/');
+    setMobileOpen(false);
+    setAccountOpen(false);
+  };
+
   const goNotes = () => {
     navigate('/notes');
+    setMobileOpen(false);
+    setAccountOpen(false);
+  };
+
+  const goQuizzes = () => {
+    navigate('/quizzes');
     setMobileOpen(false);
     setAccountOpen(false);
   };
@@ -144,22 +156,16 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
         </button>
 
         <motion.div className="hidden lg:flex items-center gap-5">
-          <button type="button" onClick={() => scrollTo('features')} className={navLinkClass('features')}>
-            Features
-            {activeSection === 'features' && (
-              <motion.span layoutId="nav-indicator" className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient rounded-full" />
-            )}
-          </button>
-          <button type="button" onClick={() => scrollTo('about')} className={navLinkClass('about')}>
-            About
-            {activeSection === 'about' && (
-              <motion.span layoutId="nav-indicator" className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient rounded-full" />
-            )}
-          </button>
-          {showTimer && <StudyTimer compact />}
-          
           {user ? (
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={goHome}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-primary-900 transition-colors"
+              >
+                <Home className="w-4 h-4" />
+                Home
+              </button>
               <button
                 type="button"
                 onClick={goDashboard}
@@ -176,6 +182,14 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
                 <BookOpenText className="w-4 h-4" />
                 My Notes
               </button>
+              <button
+                type="button"
+                onClick={goQuizzes}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-primary-900 transition-colors"
+              >
+                <HelpCircle className="w-4 h-4" />
+                My Quizzes
+              </button>
               <div ref={accountRef} className="relative">
                 <motion.button
                   type="button"
@@ -187,7 +201,7 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
                   <div className="w-7 h-7 rounded-full bg-gradient flex items-center justify-center text-xs font-bold text-white uppercase">
                     {user.name.charAt(0)}
                   </div>
-                  <span className="text-sm font-medium text-primary-900 max-w-[110px] truncate">{user.name}</span>
+                  <span className="text-sm font-medium text-primary-900 max-w-[110px] truncate">Profile</span>
                   <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${accountOpen ? 'rotate-180' : ''}`} />
                 </motion.button>
 
@@ -218,15 +232,30 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
               </div>
             </div>
           ) : (
-            <motion.button
-              type="button"
-              whileHover={{ scale: 1.03, y: -1 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleLoginClick}
-              className="px-5 py-2.5 bg-gradient text-white rounded-full text-sm font-semibold shadow-glow-sm ripple"
-            >
-              Login
-            </motion.button>
+            <>
+              <button type="button" onClick={() => scrollTo('features')} className={navLinkClass('features')}>
+                Features
+                {activeSection === 'features' && (
+                  <motion.span layoutId="nav-indicator" className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient rounded-full" />
+                )}
+              </button>
+              <button type="button" onClick={() => scrollTo('about')} className={navLinkClass('about')}>
+                About
+                {activeSection === 'about' && (
+                  <motion.span layoutId="nav-indicator" className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient rounded-full" />
+                )}
+              </button>
+              {showTimer && <StudyTimer compact />}
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.03, y: -1 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={handleLoginClick}
+                className="px-5 py-2.5 bg-gradient text-white rounded-full text-sm font-semibold shadow-glow-sm ripple"
+              >
+                Login
+              </motion.button>
+            </>
           )}
         </motion.div>
 
@@ -247,15 +276,12 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
           exit={{ opacity: 0, height: 0 }}
           className="lg:hidden glass-dark border-t border-primary-900/10 px-4 py-4 space-y-3"
         >
-          <button type="button" onClick={() => scrollTo('features')} className="block w-full text-left py-2 text-slate-700">
-            Features
-          </button>
-          <button type="button" onClick={() => scrollTo('about')} className="block w-full text-left py-2 text-slate-700">
-            About
-          </button>
-          {showTimer && <StudyTimer compact />}
           {user ? (
             <div className="space-y-2">
+              <button type="button" onClick={goHome} className="flex w-full items-center gap-2 py-2 text-slate-700">
+                <Home className="w-4 h-4" />
+                Home
+              </button>
               <button type="button" onClick={goDashboard} className="flex w-full items-center gap-2 py-2 text-slate-700">
                 <BarChart3 className="w-4 h-4" />
                 Dashboard
@@ -263,6 +289,10 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
               <button type="button" onClick={goNotes} className="flex w-full items-center gap-2 py-2 text-slate-700">
                 <BookOpenText className="w-4 h-4" />
                 My Notes
+              </button>
+              <button type="button" onClick={goQuizzes} className="flex w-full items-center gap-2 py-2 text-slate-700">
+                <HelpCircle className="w-4 h-4" />
+                My Quizzes
               </button>
               <button
                 type="button"
@@ -273,7 +303,7 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
                   <span className="w-8 h-8 rounded-full bg-gradient flex items-center justify-center font-bold text-white uppercase shrink-0">
                     {user.name.charAt(0)}
                   </span>
-                  <span className="font-semibold text-primary-900 truncate">{user.name}</span>
+                  <span className="font-semibold text-primary-900 truncate">Profile</span>
                 </span>
                 <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${accountOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -298,9 +328,18 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
               </AnimatePresence>
             </div>
           ) : (
-            <button type="button" onClick={handleLoginClick} className="w-full py-3 bg-gradient rounded-full font-semibold">
-              Login
-            </button>
+            <>
+              <button type="button" onClick={() => scrollTo('features')} className="block w-full text-left py-2 text-slate-700">
+                Features
+              </button>
+              <button type="button" onClick={() => scrollTo('about')} className="block w-full text-left py-2 text-slate-700">
+                About
+              </button>
+              {showTimer && <StudyTimer compact />}
+              <button type="button" onClick={handleLoginClick} className="w-full py-3 bg-gradient rounded-full font-semibold">
+                Login
+              </button>
+            </>
           )}
         </motion.div>
       )}

@@ -21,6 +21,11 @@ const sanitizeArray = (value) => {
   return [];
 };
 
+const sanitizeText = (value) => {
+  if (Array.isArray(value)) return sanitizeArray(value).join('\n');
+  return value || '';
+};
+
 const normalizeNoteInput = (body) => {
   const videoData = body.videoData || body;
   const generatedNotes = body.notes || body.generatedNotes || body;
@@ -35,7 +40,7 @@ const normalizeNoteInput = (body) => {
     summary: generatedNotes.summary || '',
     keyPoints: sanitizeArray(generatedNotes.keyPoints),
     importantConcepts: sanitizeArray(generatedNotes.importantConcepts),
-    revisionNotes: generatedNotes.revisionNotes || '',
+    revisionNotes: sanitizeText(generatedNotes.revisionNotes),
     quickRecap: generatedNotes.quickRecap || '',
     suggestedFollowUpTopics: sanitizeArray(generatedNotes.suggestedFollowUpTopics),
     transcriptSource: generatedNotes.transcriptSource || 'metadata',

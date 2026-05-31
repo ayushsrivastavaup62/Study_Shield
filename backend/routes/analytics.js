@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const StudySession = require('../models/StudySession');
 const WatchedVideo = require('../models/WatchedVideo');
 const BlockedVideo = require('../models/BlockedVideo');
+const Quiz = require('../models/Quiz');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -85,13 +86,25 @@ const calculateFocusScore = ({
 };
 
 const getSummaryForUser = async (userId) => {
-  const [studyTimeResult, totalWatchedVideos, totalBlockedVideos, activeDays] = await Promise.all([
+  const [studyTimeResult, totalWatchedVideos, totalBlockedVideos, quizStatsResult, latestQuiz, activeDays] = await Promise.all([
     StudySession.aggregate([
       { $match: { userId: toObjectId(userId) } },
       { $group: { _id: null, total: { $sum: { $ifNull: ['$duration', 0] } } } },
     ]),
     WatchedVideo.countDocuments({ userId }),
     BlockedVideo.countDocuments({ userId }),
+    Quiz.aggregate([
+      { $match: { userId: toObjectId(userId) } },
+      {
+        $group: {
+          _id: null,
+          totalQuizzesAttempted: { $sum: 1 },
+          averageScore: { $avg: '$percentage' },
+          bestScore: { $max: '$percentage' },
+        },
+      },
+    ]),
+    Quiz.findOne({ userId }).sort({ attemptedAt: -1 }).lean(),
     getActiveStudyDays(userId),
   ]);
 
@@ -111,6 +124,19 @@ const getSummaryForUser = async (userId) => {
     totalStudyTime,
     totalWatchedVideos,
     totalBlockedVideos,
+    totalQuizzesAttempted: quizStatsResult[0]?.totalQuizzesAttempted || 0,
+    averageQuizScore: Math.round(quizStatsResult[0]?.averageScore || 0),
+    bestQuizScore: Math.round(quizStatsResult[0]?.bestScore || 0),
+    latestQuizResult: latestQuiz
+      ? {
+          id: latestQuiz._id,
+          videoTitle: latestQuiz.videoTitle,
+          score: latestQuiz.score,
+          totalQuestions: latestQuiz.totalQuestions,
+          percentage: latestQuiz.percentage,
+          attemptedAt: latestQuiz.attemptedAt,
+        }
+      : null,
     focusScore,
     currentStreak,
     longestStreak,

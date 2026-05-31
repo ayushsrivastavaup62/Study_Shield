@@ -1,12 +1,14 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const OpenAI = require('openai');
+const axios = require('axios');
 
 class AIService {
   constructor() {
     this.provider = process.env.AI_PROVIDER || 'GEMINI';
     this.maxRetries = 3;
     this.timeout = 10000; // 10 seconds
-    this.geminiModelName = 'gemini-1.5-flash';
+    this.geminiModelName = null;
+    this.geminiInitializationPromise = null;
     
     // Initialize AI providers with validation
     try {
@@ -16,16 +18,7 @@ class AIService {
           this.genAI = null;
         } else {
           this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-          // Use gemini-1.5-flash which is more stable
-          this.model = this.genAI.getGenerativeModel({ 
-            model: this.geminiModelName,
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 50,
-            }
-          });
-          console.log("Using Gemini model:", this.geminiModelName);
-          console.log('✅ Gemini AI initialized successfully');
+          this.geminiInitializationPromise = this.initializeGeminiModel();
         }
       } else if (this.provider === 'OPENAI') {
         if (!process.env.OPENAI_API_KEY) {
@@ -43,6 +36,66 @@ class AIService {
       console.error('❌ AI Provider initialization failed:', error.message);
       this.genAI = null;
       this.openai = null;
+    }
+  }
+
+  async initializeGeminiModel() {
+    try {
+      const models = await this.listAvailableGeminiModels();
+      const supportedModels = models.filter(model => {
+        return Array.isArray(model.supportedGenerationMethods) &&
+          model.supportedGenerationMethods.includes('generateContent');
+      });
+
+      console.log('[GEMINI] Available models for current API key:');
+      models.forEach(model => {
+        const methods = Array.isArray(model.supportedGenerationMethods)
+          ? model.supportedGenerationMethods.join(', ')
+          : 'none listed';
+        console.log(` - ${model.name} (${methods})`);
+      });
+
+      console.log('[GEMINI] Models supporting generateContent:');
+      supportedModels.forEach(model => console.log(` - ${model.name}`));
+
+      const selectedModel = supportedModels[0];
+      if (!selectedModel) {
+        throw new Error('No Gemini models supporting generateContent are available for this API key');
+      }
+
+      this.geminiModelName = selectedModel.name;
+      this.model = this.genAI.getGenerativeModel({
+        model: this.geminiModelName,
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 50,
+        }
+      });
+
+      console.log('[GEMINI] Using model:', this.geminiModelName);
+    } catch (error) {
+      console.error('[GEMINI] Model discovery failed:', error.message);
+      this.geminiModelName = null;
+      this.model = null;
+    }
+  }
+
+  async listAvailableGeminiModels() {
+    const response = await axios.get('https://generativelanguage.googleapis.com/v1beta/models', {
+      params: { key: process.env.GEMINI_API_KEY },
+      timeout: this.timeout,
+    });
+
+    return Array.isArray(response.data.models) ? response.data.models : [];
+  }
+
+  async ensureGeminiInitialized() {
+    if (this.geminiInitializationPromise) {
+      await this.geminiInitializationPromise;
+    }
+
+    if (!this.model || !this.geminiModelName) {
+      throw new Error('No Gemini generateContent model is available');
     }
   }
 
@@ -359,6 +412,8 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
   }
 
   async classifyWithGemini(prompt) {
+    await this.ensureGeminiInitialized();
+
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('AI request timeout')), this.timeout);
     });
@@ -412,8 +467,13 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
       return [];
     };
 
+    const safeString = (value) => {
+      if (Array.isArray(value)) return value.filter(Boolean).map((item) => String(item).trim()).filter(Boolean).join('\n');
+      return String(value || '').trim();
+    };
+
     const title = videoData.title || videoData.videoTitle || 'this educational video';
-    const summary = notes?.summary || `These notes summarize the core learning ideas from "${title}" using the available video metadata.`;
+    const summary = safeString(notes?.summary) || `These notes summarize the core learning ideas from "${title}" using the available video metadata.`;
     const keyPoints = safeArray(notes?.keyPoints).length
       ? safeArray(notes.keyPoints)
       : [
@@ -424,11 +484,10 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
     const importantConcepts = safeArray(notes?.importantConcepts).length
       ? safeArray(notes.importantConcepts)
       : [videoData.category || videoData.categoryId || 'General study topic'];
-    const revisionNotes =
-      notes?.revisionNotes ||
-      'Revise the topic by writing the main idea in your own words, listing examples, and solving one related practice question.';
-    const quickRecap =
-      notes?.quickRecap ||
+    const revisionNotes = safeArray(notes?.revisionNotes).length
+      ? safeArray(notes.revisionNotes)
+      : ['Revise the topic by writing the main idea in your own words, listing examples, and solving one related practice question.'];
+    const quickRecap = safeString(notes?.quickRecap) ||
       `Quick recap: ${title} focuses on an educational topic. Rewatch difficult sections and convert them into short revision prompts.`;
     const suggestedFollowUpTopics = safeArray(notes?.suggestedFollowUpTopics).length
       ? safeArray(notes.suggestedFollowUpTopics)
@@ -448,11 +507,344 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
           `Short Summary:\n${summary}`,
           `Key Points:\n${keyPoints.map((item) => `- ${item}`).join('\n')}`,
           `Important Concepts:\n${importantConcepts.map((item) => `- ${item}`).join('\n')}`,
-          `Revision Notes:\n${revisionNotes}`,
+          `Revision Notes:\n${revisionNotes.map((item) => `- ${item}`).join('\n')}`,
           `Quick Recap:\n${quickRecap}`,
           `Suggested Follow-up Topics:\n${suggestedFollowUpTopics.map((item) => `- ${item}`).join('\n')}`,
         ].join('\n\n'),
     };
+  }
+
+  cleanGeminiNotesJSON(text = '') {
+    const withoutFences = String(text)
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+    const firstBrace = withoutFences.indexOf('{');
+    const lastBrace = withoutFences.lastIndexOf('}');
+
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      return withoutFences.slice(firstBrace, lastBrace + 1).trim();
+    }
+
+    return withoutFences;
+  }
+
+  safeParseJSON(cleanedText, rawText) {
+    try {
+      const parsed = JSON.parse(cleanedText);
+      console.log('[AI NOTES] Parsed Gemini notes successfully');
+      return parsed;
+    } catch (error) {
+      console.warn('[AI NOTES] Gemini JSON parse failed:', error.message);
+      console.log('[AI NOTES] Raw Gemini response:', rawText);
+      return null;
+    }
+  }
+
+  extractRawNotesSection(text, labels) {
+    const normalizedLabels = labels.map((label) => label.toLowerCase());
+    const lines = String(text || '').split(/\r?\n/);
+    const collected = [];
+    let collecting = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const labelMatch = trimmed.match(/^#{0,6}\s*([A-Za-z][A-Za-z\s-]+):?\s*(.*)$/);
+      const label = labelMatch?.[1]?.trim().toLowerCase();
+      const isKnownSection = [
+        'summary',
+        'short summary',
+        'key points',
+        'important concepts',
+        'revision notes',
+        'quick recap',
+        'suggested follow-up topics',
+        'suggested follow up topics',
+      ].includes(label);
+
+      if (label && normalizedLabels.includes(label)) {
+        collecting = true;
+        if (labelMatch[2]) collected.push(labelMatch[2].trim());
+        continue;
+      }
+
+      if (collecting && isKnownSection) break;
+      if (collecting && trimmed) collected.push(trimmed);
+    }
+
+    return collected
+      .map((item) => item.replace(/^[-*\d.\s]+/, '').trim())
+      .filter(Boolean);
+  }
+
+  buildNotesFromRawGeminiText(rawText, videoData = {}, transcriptSource = 'metadata') {
+    const plainText = String(rawText || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+    const lines = plainText
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*\d.\s]+/, '').trim())
+      .filter(Boolean);
+    const sentences = plainText
+      .replace(/\s+/g, ' ')
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter(Boolean);
+    const bulletLines = lines.filter((line) => !/^[A-Za-z][A-Za-z\s-]+:?$/.test(line));
+
+    const summarySection = this.extractRawNotesSection(plainText, ['summary', 'short summary']);
+    const keyPointsSection = this.extractRawNotesSection(plainText, ['key points']);
+    const conceptsSection = this.extractRawNotesSection(plainText, ['important concepts']);
+    const revisionSection = this.extractRawNotesSection(plainText, ['revision notes']);
+    const recapSection = this.extractRawNotesSection(plainText, ['quick recap']);
+    const topicsSection = this.extractRawNotesSection(plainText, ['suggested follow-up topics', 'suggested follow up topics']);
+
+    return this.normalizeNotesPayload(
+      {
+        summary: summarySection.join(' ') || sentences.slice(0, 2).join(' ') || plainText.slice(0, 500),
+        keyPoints: keyPointsSection.length ? keyPointsSection : bulletLines.slice(0, 5),
+        importantConcepts: conceptsSection.length ? conceptsSection : bulletLines.slice(5, 9),
+        revisionNotes: revisionSection.length ? revisionSection : sentences.slice(-3),
+        quickRecap: recapSection.join(' ') || sentences.slice(0, 3).join(' '),
+        suggestedFollowUpTopics: topicsSection.length ? topicsSection : bulletLines.slice(-3),
+        rawNotesText: plainText,
+      },
+      videoData,
+      transcriptSource
+    );
+  }
+
+  cleanGeminiQuizJSON(text = '') {
+    const withoutFences = String(text)
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+    const firstBracket = withoutFences.indexOf('[');
+    const lastBracket = withoutFences.lastIndexOf(']');
+    const firstBrace = withoutFences.indexOf('{');
+    const lastBrace = withoutFences.lastIndexOf('}');
+
+    if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+      return withoutFences.slice(firstBracket, lastBracket + 1).trim();
+    }
+
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      return withoutFences.slice(firstBrace, lastBrace + 1).trim();
+    }
+
+    return withoutFences;
+  }
+
+  normalizeQuizQuestions(payload) {
+    const rawQuestions = Array.isArray(payload) ? payload : payload?.questions;
+    if (!Array.isArray(rawQuestions)) return [];
+
+    return rawQuestions
+      .map((item) => {
+        const options = Array.isArray(item?.options)
+          ? item.options.map((option) => String(option || '').trim()).filter(Boolean).slice(0, 4)
+          : [];
+        const correctAnswer = String(item?.correctAnswer || '').trim();
+        const normalizedDifficulty = String(item?.difficulty || 'Medium').trim();
+        const difficulty = ['Easy', 'Medium', 'Hard'].includes(normalizedDifficulty)
+          ? normalizedDifficulty
+          : 'Medium';
+
+        return {
+          question: String(item?.question || '').trim(),
+          options,
+          correctAnswer,
+          explanation: String(item?.explanation || '').trim(),
+          difficulty,
+        };
+      })
+      .filter((item) => {
+        return item.question &&
+          item.options.length === 4 &&
+          item.correctAnswer &&
+          item.options.includes(item.correctAnswer);
+      })
+      .slice(0, 10);
+  }
+
+  buildFallbackQuiz(videoData = {}, notes = null) {
+    const title = videoData.title || videoData.videoTitle || 'the selected topic';
+    const description = videoData.description || notes?.summary || 'Use the video explanation and notes to answer.';
+    const concepts = Array.isArray(notes?.importantConcepts) && notes.importantConcepts.length
+      ? notes.importantConcepts.slice(0, 4)
+      : [videoData.category || videoData.categoryId || title];
+
+    return [
+      {
+        question: `What is the main topic discussed in "${title}"?`,
+        options: [title, 'Unrelated entertainment content', 'Channel promotion only', 'A random news update'],
+        correctAnswer: title,
+        explanation: `The quiz is based on the selected educational video: "${title}".`,
+        difficulty: 'Easy',
+      },
+      {
+        question: 'Which source should you prioritize while revising this video?',
+        options: ['The video explanation and notes', 'Unrelated comments', 'Random recommendations', 'Only the thumbnail'],
+        correctAnswer: 'The video explanation and notes',
+        explanation: 'Revision should focus on the educational content and generated study notes.',
+        difficulty: 'Easy',
+      },
+      {
+        question: `Which detail best matches the available context for "${title}"?`,
+        options: [description.slice(0, 120) || title, 'A gaming walkthrough', 'A music release', 'A prank compilation'],
+        correctAnswer: description.slice(0, 120) || title,
+        explanation: 'The available metadata and notes provide the topic context for the quiz.',
+        difficulty: 'Medium',
+      },
+      {
+        question: 'What is the best way to check understanding after watching?',
+        options: ['Explain the concept in your own words', 'Skip the hard parts', 'Only memorize the title', 'Avoid practice'],
+        correctAnswer: 'Explain the concept in your own words',
+        explanation: 'Rephrasing ideas is a strong test of understanding.',
+        difficulty: 'Medium',
+      },
+      {
+        question: `Which concept is most likely connected to "${title}"?`,
+        options: [String(concepts[0]), 'Celebrity gossip', 'Movie box office', 'Sports highlights'],
+        correctAnswer: String(concepts[0]),
+        explanation: 'This option comes from the video metadata or generated notes.',
+        difficulty: 'Easy',
+      },
+      {
+        question: 'When solving a related problem, what should you identify first?',
+        options: ['The core concept being tested', 'The video length', 'The like count', 'The upload date only'],
+        correctAnswer: 'The core concept being tested',
+        explanation: 'Problem-solving starts by identifying the concept and applying the right method.',
+        difficulty: 'Medium',
+      },
+      {
+        question: 'Which habit helps avoid common mistakes in this topic?',
+        options: ['Review definitions and worked examples', 'Guess without checking', 'Ignore edge cases', 'Watch unrelated videos'],
+        correctAnswer: 'Review definitions and worked examples',
+        explanation: 'Definitions and examples usually expose the assumptions and steps where mistakes happen.',
+        difficulty: 'Medium',
+      },
+      {
+        question: 'What should you do with confusing parts of the lesson?',
+        options: ['Rewatch and turn them into revision prompts', 'Skip them permanently', 'Delete your notes', 'Switch to distractions'],
+        correctAnswer: 'Rewatch and turn them into revision prompts',
+        explanation: 'Targeted revision turns weak spots into concrete study tasks.',
+        difficulty: 'Easy',
+      },
+      {
+        question: `How should "${title}" be connected to future study?`,
+        options: ['Practice related questions and compare explanations', 'Avoid practice problems', 'Only save the thumbnail', 'Use unrelated examples'],
+        correctAnswer: 'Practice related questions and compare explanations',
+        explanation: 'Applying the topic to questions strengthens understanding beyond passive watching.',
+        difficulty: 'Hard',
+      },
+      {
+        question: 'What is the most reliable evidence that you understood the lesson?',
+        options: ['You can apply it to a new example', 'You remember the background color', 'You watched at high speed only', 'You skipped the recap'],
+        correctAnswer: 'You can apply it to a new example',
+        explanation: 'Transfer to a new example shows real conceptual understanding.',
+        difficulty: 'Hard',
+      },
+    ];
+  }
+
+  async generateQuiz(videoData = {}, notes = null) {
+    const transcript = videoData.transcript || videoData.captions || '';
+    let quizNotes = notes;
+    let notesText = quizNotes?.rawNotesText || quizNotes?.summary || '';
+
+    if (!transcript && !notesText) {
+      try {
+        quizNotes = await this.generateNotes(videoData);
+        notesText = quizNotes?.rawNotesText || quizNotes?.summary || '';
+      } catch (error) {
+        console.warn('[AI QUIZ] Could not generate notes context for quiz:', error.message);
+      }
+    }
+
+    const contextSource = transcript ? 'transcript' : notesText ? 'AI-generated notes' : 'video metadata';
+
+    if (!this.genAI && this.provider === 'GEMINI') {
+      return this.buildFallbackQuiz(videoData, quizNotes);
+    }
+
+    try {
+      if (this.provider !== 'GEMINI' || !this.genAI) {
+        return this.buildFallbackQuiz(videoData, quizNotes);
+      }
+
+      await this.ensureGeminiInitialized();
+      const quizModel = this.genAI.getGenerativeModel({
+        model: this.geminiModelName,
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 3000,
+        },
+      });
+
+      const prompt = `Create a topic-specific quiz for this educational YouTube video.
+
+Return ONLY valid JSON.
+Do not include markdown.
+Do not include code fences.
+Do not include explanations before or after the JSON.
+
+Return this exact shape:
+{
+  "questions": [
+    {
+      "question": "string",
+      "options": ["option A", "option B", "option C", "option D"],
+      "correctAnswer": "one exact option string",
+      "explanation": "why the answer is correct",
+      "difficulty": "Easy"
+    }
+  ]
+}
+
+Rules:
+- Generate exactly 10 MCQs.
+- Each question must have exactly 4 options.
+- correctAnswer must exactly match one option string.
+- Difficulty mix must be 4 Easy, 4 Medium, 2 Hard.
+- Test definitions, concepts, applications, problem-solving, and common mistakes.
+- Do not ask generic YouTube/video metadata questions unless no better context exists.
+- Make the quiz specific to the actual topic.
+
+Context priority used: ${contextSource}
+
+Video metadata:
+Title: ${videoData.title || videoData.videoTitle || 'N/A'}
+Channel: ${videoData.channelTitle || 'N/A'}
+Description: ${videoData.description || 'N/A'}
+Tags: ${Array.isArray(videoData.tags) ? videoData.tags.join(', ') : 'N/A'}
+Category: ${videoData.category || videoData.categoryId || 'N/A'}
+
+AI notes:
+${notesText || 'No notes available.'}
+
+Transcript:
+${transcript || 'Transcript unavailable.'}`;
+
+      console.log('[AI QUIZ] Generating quiz with Gemini');
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('AI quiz request timeout')), 25000);
+      });
+      const result = await Promise.race([quizModel.generateContent(prompt), timeoutPromise]);
+      const text = result.response.text().trim();
+      console.log('[AI QUIZ] Raw Gemini response:', text);
+      const cleaned = this.cleanGeminiQuizJSON(text);
+      console.log('[AI QUIZ] Cleaned Gemini JSON:', cleaned);
+      const parsed = JSON.parse(cleaned);
+      const questions = this.normalizeQuizQuestions(parsed);
+
+      if (questions.length < 5) {
+        throw new Error('Gemini returned too few valid quiz questions');
+      }
+
+      return questions;
+    } catch (error) {
+      console.warn('[AI QUIZ] Gemini quiz generation failed, using metadata-based fallback:', error.message);
+      return this.buildFallbackQuiz(videoData, quizNotes);
+    }
   }
 
   buildFallbackNotes(videoData = {}, transcriptSource = 'metadata') {
@@ -491,16 +883,31 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
     const transcript = videoData.transcript || videoData.captions || '';
     const transcriptSource = transcript ? 'transcript' : 'metadata';
 
+    if (this.provider === 'GEMINI' && this.genAI) {
+      try {
+        await this.ensureGeminiInitialized();
+      } catch (error) {
+        console.warn('[AI NOTES] Gemini model unavailable, using fallback:', error.message);
+        return this.buildFallbackNotes(videoData, transcriptSource);
+      }
+    }
+
     const prompt = `You are StudyShield's AI notes generator. Create concise, useful study notes for this educational YouTube video.
 
-Return ONLY valid JSON with these keys:
+Return ONLY valid JSON.
+Do not include markdown.
+Do not include code fences.
+Do not include explanations before or after the JSON.
+Escape all multiline text as JSON-safe strings, or use arrays of strings for lists.
+Use exactly these keys:
 {
   "summary": "short paragraph",
   "keyPoints": ["point 1", "point 2"],
   "importantConcepts": ["concept 1", "concept 2"],
-  "revisionNotes": "revision paragraph",
+  "revisionNotes": ["revision note 1", "revision note 2"],
   "quickRecap": "brief recap",
-  "suggestedFollowUpTopics": ["topic 1", "topic 2"]
+  "suggestedFollowUpTopics": ["topic 1", "topic 2"],
+  "rawNotesText": "complete notes text"
 }
 
 Video metadata:
@@ -535,9 +942,16 @@ Transcript: ${transcript || 'Transcript unavailable. Generate notes from metadat
       console.log("Generating notes with Gemini");
       const result = await Promise.race([notesModel.generateContent(prompt), timeoutPromise]);
       const text = result.response.text().trim();
-      const jsonText = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
-      const parsed = JSON.parse(jsonText);
-      return this.normalizeNotesPayload({ ...parsed, rawNotesText: text }, videoData, transcriptSource);
+      console.log('[AI NOTES] Raw Gemini response:', text);
+      const cleaned = this.cleanGeminiNotesJSON(text);
+      console.log('[AI NOTES] Cleaned Gemini JSON:', cleaned);
+      const parsed = this.safeParseJSON(cleaned, text);
+
+      if (!parsed) {
+        return this.buildNotesFromRawGeminiText(text, videoData, transcriptSource);
+      }
+
+      return this.normalizeNotesPayload({ ...parsed, rawNotesText: parsed.rawNotesText || text }, videoData, transcriptSource);
     } catch (error) {
       console.warn('[AI NOTES] Gemini notes generation failed, using fallback:', error.message);
       return this.buildFallbackNotes(videoData, transcriptSource);
@@ -908,6 +1322,7 @@ Transcript: ${transcript || 'Transcript unavailable. Generate notes from metadat
   async healthCheck() { 
     if (this.provider === 'GEMINI' && this.genAI) {
       try {
+        await this.ensureGeminiInitialized();
         await this.model.generateContent('test');
         return { status: 'healthy', provider: 'GEMINI' };
       } catch (error) {

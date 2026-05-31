@@ -10,7 +10,9 @@ import {
   Clock,
   Flame,
   GraduationCap,
+  HelpCircle,
   Loader2,
+  Medal,
   PlayCircle,
   ShieldCheck,
   Trophy,
@@ -147,6 +149,7 @@ const Dashboard = () => {
     (summary.totalStudyTime > 0 ||
       summary.totalWatchedVideos > 0 ||
       summary.totalBlockedVideos > 0 ||
+      summary.totalQuizzesAttempted > 0 ||
       summary.currentStreak > 0 ||
       recent.length > 0);
 
@@ -187,6 +190,32 @@ const Dashboard = () => {
           value: `${summary.longestStreak}d`,
           icon: Trophy,
           tone: 'text-amber-700 bg-amber-100/80',
+        },
+        {
+          label: 'Quizzes Attempted',
+          value: summary.totalQuizzesAttempted || 0,
+          icon: HelpCircle,
+          tone: 'text-violet-700 bg-violet-100/80',
+        },
+        {
+          label: 'Average Quiz Score',
+          value: `${summary.averageQuizScore || 0}%`,
+          icon: BarChart3,
+          tone: 'text-cyan-700 bg-cyan-100/80',
+        },
+        {
+          label: 'Best Quiz Score',
+          value: `${summary.bestQuizScore || 0}%`,
+          icon: Medal,
+          tone: 'text-rose-700 bg-rose-100/80',
+        },
+        {
+          label: 'Latest Quiz Result',
+          value: summary.latestQuizResult
+            ? `${summary.latestQuizResult.score}/${summary.latestQuizResult.totalQuestions}`
+            : 'None',
+          icon: Trophy,
+          tone: 'text-lime-700 bg-lime-100/80',
         },
       ]
     : [];

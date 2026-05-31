@@ -5,6 +5,7 @@ import LandingPage from './pages/LandingPage';
 import StudyInterface from './pages/StudyInterface';
 import Dashboard from './pages/Dashboard';
 import MyNotes from './pages/MyNotes';
+import MyQuizzes from './pages/MyQuizzes';
 import { AuthProvider } from './context/AuthContext';
 
 function AnimatedRoutes() {
@@ -17,6 +18,7 @@ function AnimatedRoutes() {
         <Route path="/study" element={<StudyInterface />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/notes" element={<MyNotes />} />
+        <Route path="/quizzes" element={<MyQuizzes />} />
       </Routes>
     </AnimatePresence>
   );
