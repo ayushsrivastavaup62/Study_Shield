@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion';
 import LandingPage from './pages/LandingPage';
 import StudyInterface from './pages/StudyInterface';
 import Dashboard from './pages/Dashboard';
+import MyNotes from './pages/MyNotes';
 import { AuthProvider } from './context/AuthContext';
 
 function AnimatedRoutes() {
@@ -15,6 +16,7 @@ function AnimatedRoutes() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/study" element={<StudyInterface />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/notes" element={<MyNotes />} />
       </Routes>
     </AnimatePresence>
   );

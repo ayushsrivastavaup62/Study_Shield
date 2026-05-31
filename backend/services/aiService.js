@@ -6,6 +6,7 @@ class AIService {
     this.provider = process.env.AI_PROVIDER || 'GEMINI';
     this.maxRetries = 3;
     this.timeout = 10000; // 10 seconds
+    this.geminiModelName = 'gemini-1.5-flash';
     
     // Initialize AI providers with validation
     try {
@@ -17,12 +18,13 @@ class AIService {
           this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
           // Use gemini-1.5-flash which is more stable
           this.model = this.genAI.getGenerativeModel({ 
-            model: 'models/gemini-1.5-pro-latest',
+            model: this.geminiModelName,
             generationConfig: {
               temperature: 0.1,
               maxOutputTokens: 50,
             }
           });
+          console.log("Using Gemini model:", this.geminiModelName);
           console.log('✅ Gemini AI initialized successfully');
         }
       } else if (this.provider === 'OPENAI') {
@@ -396,6 +398,150 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
     
     console.log('⚠️ Unclear AI response, using fallback');
     throw new Error('Unclear AI response');
+  }
+
+  normalizeNotesPayload(notes, videoData = {}, transcriptSource = 'metadata') {
+    const safeArray = (value) => {
+      if (Array.isArray(value)) return value.filter(Boolean).map((item) => String(item).trim()).filter(Boolean);
+      if (typeof value === 'string') {
+        return value
+          .split(/\n|;/)
+          .map((item) => item.replace(/^[-*\d.\s]+/, '').trim())
+          .filter(Boolean);
+      }
+      return [];
+    };
+
+    const title = videoData.title || videoData.videoTitle || 'this educational video';
+    const summary = notes?.summary || `These notes summarize the core learning ideas from "${title}" using the available video metadata.`;
+    const keyPoints = safeArray(notes?.keyPoints).length
+      ? safeArray(notes.keyPoints)
+      : [
+          `Understand the main topic: ${title}.`,
+          'Review the examples or explanations shared in the video.',
+          'Pause and revise the definitions, steps, or formulas mentioned.',
+        ];
+    const importantConcepts = safeArray(notes?.importantConcepts).length
+      ? safeArray(notes.importantConcepts)
+      : [videoData.category || videoData.categoryId || 'General study topic'];
+    const revisionNotes =
+      notes?.revisionNotes ||
+      'Revise the topic by writing the main idea in your own words, listing examples, and solving one related practice question.';
+    const quickRecap =
+      notes?.quickRecap ||
+      `Quick recap: ${title} focuses on an educational topic. Rewatch difficult sections and convert them into short revision prompts.`;
+    const suggestedFollowUpTopics = safeArray(notes?.suggestedFollowUpTopics).length
+      ? safeArray(notes.suggestedFollowUpTopics)
+      : ['Practice problems', 'Related beginner tutorial', 'Advanced explanation'];
+
+    return {
+      summary,
+      keyPoints,
+      importantConcepts,
+      revisionNotes,
+      quickRecap,
+      suggestedFollowUpTopics,
+      transcriptSource,
+      rawNotesText:
+        notes?.rawNotesText ||
+        [
+          `Short Summary:\n${summary}`,
+          `Key Points:\n${keyPoints.map((item) => `- ${item}`).join('\n')}`,
+          `Important Concepts:\n${importantConcepts.map((item) => `- ${item}`).join('\n')}`,
+          `Revision Notes:\n${revisionNotes}`,
+          `Quick Recap:\n${quickRecap}`,
+          `Suggested Follow-up Topics:\n${suggestedFollowUpTopics.map((item) => `- ${item}`).join('\n')}`,
+        ].join('\n\n'),
+    };
+  }
+
+  buildFallbackNotes(videoData = {}, transcriptSource = 'metadata') {
+    const title = videoData.title || videoData.videoTitle || 'Educational video';
+    const channel = videoData.channelTitle || 'the creator';
+    const description = videoData.description || '';
+    const tags = Array.isArray(videoData.tags) ? videoData.tags.slice(0, 6) : [];
+    const concepts = tags.length ? tags : [videoData.category || videoData.categoryId || 'General Study'];
+
+    return this.normalizeNotesPayload(
+      {
+        summary: `"${title}" by ${channel} appears to cover an educational topic. Use these notes as a starting point and refine them while watching.`,
+        keyPoints: [
+          `Main topic: ${title}.`,
+          channel ? `Source/channel: ${channel}.` : 'Identify the source and its teaching style.',
+          description ? `Context from description: ${description.slice(0, 180)}${description.length > 180 ? '...' : ''}` : 'Capture definitions, examples, and steps as you watch.',
+          'Mark any formulas, commands, dates, or frameworks that need revision.',
+        ],
+        importantConcepts: concepts,
+        revisionNotes:
+          'After watching, rewrite the explanation in your own words, create 3-5 flashcards, and revisit confusing timestamps.',
+        quickRecap:
+          'Focus on the core idea, examples, and practical steps. Summarize the video in five bullet points before moving on.',
+        suggestedFollowUpTopics: [
+          `${title} practice questions`,
+          `${title} beginner explanation`,
+          `${title} advanced concepts`,
+        ],
+      },
+      videoData,
+      transcriptSource
+    );
+  }
+
+  async generateNotes(videoData = {}) {
+    const transcript = videoData.transcript || videoData.captions || '';
+    const transcriptSource = transcript ? 'transcript' : 'metadata';
+
+    const prompt = `You are StudyShield's AI notes generator. Create concise, useful study notes for this educational YouTube video.
+
+Return ONLY valid JSON with these keys:
+{
+  "summary": "short paragraph",
+  "keyPoints": ["point 1", "point 2"],
+  "importantConcepts": ["concept 1", "concept 2"],
+  "revisionNotes": "revision paragraph",
+  "quickRecap": "brief recap",
+  "suggestedFollowUpTopics": ["topic 1", "topic 2"]
+}
+
+Video metadata:
+Title: ${videoData.title || 'N/A'}
+Channel: ${videoData.channelTitle || 'N/A'}
+Description: ${videoData.description || 'N/A'}
+Tags: ${Array.isArray(videoData.tags) ? videoData.tags.join(', ') : 'N/A'}
+Category: ${videoData.category || videoData.categoryId || 'N/A'}
+Transcript: ${transcript || 'Transcript unavailable. Generate notes from metadata only.'}`;
+
+    if (!this.genAI && this.provider === 'GEMINI') {
+      return this.buildFallbackNotes(videoData, transcriptSource);
+    }
+
+    try {
+      if (this.provider !== 'GEMINI' || !this.genAI) {
+        return this.buildFallbackNotes(videoData, transcriptSource);
+      }
+
+      const notesModel = this.genAI.getGenerativeModel({
+        model: this.geminiModelName,
+        generationConfig: {
+          temperature: 0.25,
+          maxOutputTokens: 1400,
+        },
+      });
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('AI notes request timeout')), 20000);
+      });
+
+      console.log("Generating notes with Gemini");
+      const result = await Promise.race([notesModel.generateContent(prompt), timeoutPromise]);
+      const text = result.response.text().trim();
+      const jsonText = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+      const parsed = JSON.parse(jsonText);
+      return this.normalizeNotesPayload({ ...parsed, rawNotesText: text }, videoData, transcriptSource);
+    } catch (error) {
+      console.warn('[AI NOTES] Gemini notes generation failed, using fallback:', error.message);
+      return this.buildFallbackNotes(videoData, transcriptSource);
+    }
   }
 
   /** Word-boundary match to avoid false positives (e.g. "cod" in "code", "reaction" in chemistry titles). */

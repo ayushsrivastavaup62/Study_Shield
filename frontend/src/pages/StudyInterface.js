@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import YouTube from 'react-youtube';
-import { Search, Target, Home, Play, Loader2 } from 'lucide-react';
+import { BookOpenText, FileText, Home, Loader2, Play, Search, Target } from 'lucide-react';
 import axios from 'axios';
 import StudyTimer from '../components/StudyTimer';
 import SearchBar from '../components/SearchBar';
 import QuotaExceededBanner from '../components/QuotaExceededBanner';
 import VideoCard, { VideoCardSkeleton } from '../components/VideoCard';
 import BlockedOverlay from '../components/BlockedOverlay';
+import NotesEditorModal from '../components/NotesEditorModal';
 import {
   getCachedSearch,
   setCachedSearch,
@@ -46,6 +47,14 @@ const StudyInterface = () => {
   const [fromCache, setFromCache] = useState(false);
   const [searchError, setSearchError] = useState(null);
   const [showQuotaBanner, setShowQuotaBanner] = useState(false);
+  const [selectedVideoDetails, setSelectedVideoDetails] = useState(null);
+  const [isSelectedEducational, setIsSelectedEducational] = useState(false);
+  const [generatingNotes, setGeneratingNotes] = useState(false);
+  const [generatedNotes, setGeneratedNotes] = useState(null);
+  const [showNotesSuccess, setShowNotesSuccess] = useState(false);
+  const [notesPreviewOpen, setNotesPreviewOpen] = useState(false);
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesStatus, setNotesStatus] = useState(null);
 
   const feedRef = useRef(null);
 
@@ -245,10 +254,22 @@ const StudyInterface = () => {
       setIsBlurred(!cachedClassification);
       setShowBlockPopup(!cachedClassification);
       setClassifying(false);
+      setIsSelectedEducational(Boolean(cachedClassification));
+      setSelectedVideoDetails(getCachedDetails(videoId) || video);
+      setGeneratedNotes(null);
+      setShowNotesSuccess(false);
+      setNotesPreviewOpen(false);
+      setNotesStatus(null);
       return;
     }
 
     setSelectedVideo(video);
+    setSelectedVideoDetails(null);
+    setIsSelectedEducational(false);
+    setGeneratedNotes(null);
+    setShowNotesSuccess(false);
+    setNotesPreviewOpen(false);
+    setNotesStatus(null);
     setIsBlurred(true);
     setShowBlockPopup(false);
     setClassifying(true);
@@ -296,17 +317,70 @@ const StudyInterface = () => {
       if (isEducational) {
         setIsBlurred(false);
         setShowBlockPopup(false);
+        setIsSelectedEducational(true);
+        setSelectedVideoDetails(details);
       } else {
         setIsBlurred(true);
         setShowBlockPopup(true);
+        setIsSelectedEducational(false);
+        setSelectedVideoDetails(details);
       }
     } catch (error) {
       console.error('Classification error:', error);
       setIsBlurred(true);
       setShowBlockPopup(true);
+      setIsSelectedEducational(false);
     }
 
     setClassifying(false);
+  };
+
+  const handleGenerateNotes = async () => {
+    if (!selectedVideo || !isSelectedEducational || isBlurred || classifying) return;
+
+    setGeneratingNotes(true);
+    setNotesStatus(null);
+    setShowNotesSuccess(false);
+
+    try {
+      const videoData = selectedVideoDetails || selectedVideo;
+      const response = await axios.post(`${API}/api/notes/generate`, {
+        videoData: {
+          ...videoData,
+          videoId: videoData.videoId || selectedVideo.videoId,
+          title: videoData.title || selectedVideo.title,
+          channelTitle: videoData.channelTitle || selectedVideo.channelTitle,
+          thumbnail: videoData.thumbnail || selectedVideo.thumbnail,
+          videoUrl: `https://www.youtube.com/watch?v=${videoData.videoId || selectedVideo.videoId}`,
+        },
+        isEducational: true,
+      });
+
+      setGeneratedNotes(response.data.notes);
+      setShowNotesSuccess(true);
+    } catch (error) {
+      setNotesStatus(error.response?.data?.message || 'Could not generate notes right now.');
+    } finally {
+      setGeneratingNotes(false);
+    }
+  };
+
+  const handleSaveNotes = async (editedNotes) => {
+    setSavingNotes(true);
+    setNotesStatus(null);
+    try {
+      await axios.post(`${API}/api/notes/save`, {
+        videoData: selectedVideoDetails || selectedVideo,
+        notes: editedNotes,
+      });
+      setNotesStatus('Notes saved successfully.');
+      setNotesPreviewOpen(false);
+      setShowNotesSuccess(false);
+    } catch (error) {
+      setNotesStatus(error.response?.data?.message || 'Could not save notes.');
+    } finally {
+      setSavingNotes(false);
+    }
   };
 
   const opts = {
@@ -346,11 +420,19 @@ const StudyInterface = () => {
           <motion.div className="flex items-center gap-3 shrink-0" whileHover={{ x: -2 }}>
             <button
               type="button"
-              onClick={() => navigate('/')}
+            onClick={() => navigate('/')}
               className="p-2.5 hover:bg-white/70 rounded-xl transition-colors border border-primary-900/10"
               aria-label="Home"
             >
               <Home className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/notes')}
+              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-full glass border border-primary-900/10 text-xs font-semibold text-primary-900 hover:border-primary-500/30 transition-colors"
+            >
+              <BookOpenText className="w-4 h-4" />
+              My Notes
             </button>
             <h1 className="text-lg sm:text-xl font-bold tracking-tight hidden sm:block">
               <span className="text-gradient">Study</span>
@@ -530,6 +612,22 @@ const StudyInterface = () => {
               >
                 <h2 className="text-lg sm:text-xl font-semibold mb-1 text-primary-900">{selectedVideo.title}</h2>
                 <p className="text-slate-500 text-sm">{selectedVideo.channelTitle}</p>
+                {isSelectedEducational && !isBlurred && !classifying && (
+                  <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleGenerateNotes}
+                      disabled={generatingNotes}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient text-white rounded-full text-sm font-bold shadow-glow-sm disabled:opacity-70"
+                    >
+                      {generatingNotes ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                      {generatingNotes ? 'Generating Notes...' : 'Generate Notes'}
+                    </motion.button>
+                    {notesStatus && <p className="text-sm text-primary-700">{notesStatus}</p>}
+                  </div>
+                )}
               </motion.div>
             </motion.div>
           ) : (
@@ -554,6 +652,57 @@ const StudyInterface = () => {
           )}
         </main>
       </motion.div>
+
+      <AnimatePresence>
+        {showNotesSuccess && generatedNotes && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] bg-primary-900/45 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              className="glass-dark rounded-2xl p-6 sm:p-8 border border-primary-900/10 shadow-glow max-w-md w-full text-center"
+            >
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-100/80 text-emerald-700 flex items-center justify-center mb-4">
+                <FileText className="w-7 h-7" />
+              </div>
+              <h2 className="text-2xl font-bold text-primary-900 mb-2">Notes generated successfully</h2>
+              <p className="text-sm text-slate-600 mb-6">Preview and edit them before saving to your account.</p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNotesSuccess(false);
+                    setNotesPreviewOpen(true);
+                  }}
+                  className="px-6 py-3 bg-gradient text-white rounded-full font-bold shadow-glow-sm"
+                >
+                  Preview Notes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowNotesSuccess(false)}
+                  className="px-6 py-3 glass rounded-full font-semibold border border-primary-900/10"
+                >
+                  Later
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <NotesEditorModal
+        isOpen={notesPreviewOpen}
+        note={generatedNotes}
+        saving={savingNotes}
+        onClose={() => setNotesPreviewOpen(false)}
+        onSave={handleSaveNotes}
+      />
     </motion.div>
   );
 };

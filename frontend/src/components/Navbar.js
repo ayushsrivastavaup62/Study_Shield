@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, BookOpen, ChevronDown, LogOut, Menu, X } from 'lucide-react';
+import { BarChart3, BookOpen, BookOpenText, ChevronDown, LogOut, Menu, X } from 'lucide-react';
 import StudyTimer from './StudyTimer';
 import { useAuth } from '../context/AuthContext';
 
@@ -77,6 +77,12 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
 
   const goDashboard = () => {
     navigate('/dashboard');
+    setMobileOpen(false);
+    setAccountOpen(false);
+  };
+
+  const goNotes = () => {
+    navigate('/notes');
     setMobileOpen(false);
     setAccountOpen(false);
   };
@@ -162,6 +168,14 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
                 <BarChart3 className="w-4 h-4" />
                 Dashboard
               </button>
+              <button
+                type="button"
+                onClick={goNotes}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-primary-900 transition-colors"
+              >
+                <BookOpenText className="w-4 h-4" />
+                My Notes
+              </button>
               <div ref={accountRef} className="relative">
                 <motion.button
                   type="button"
@@ -245,6 +259,10 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
               <button type="button" onClick={goDashboard} className="flex w-full items-center gap-2 py-2 text-slate-700">
                 <BarChart3 className="w-4 h-4" />
                 Dashboard
+              </button>
+              <button type="button" onClick={goNotes} className="flex w-full items-center gap-2 py-2 text-slate-700">
+                <BookOpenText className="w-4 h-4" />
+                My Notes
               </button>
               <button
                 type="button"
