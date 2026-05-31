@@ -143,6 +143,11 @@ const getSummaryForUser = async (userId) => {
   };
 };
 
+router.use((req, res, next) => {
+  console.log(`[ROUTE HIT] /api/analytics${req.path}`);
+  next();
+});
+
 router.use(protect);
 
 router.get('/summary', async (req, res) => {

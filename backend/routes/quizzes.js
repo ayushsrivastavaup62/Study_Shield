@@ -54,6 +54,11 @@ const evaluateQuiz = (questions, userAnswers) => {
   };
 };
 
+router.use((req, res, next) => {
+  console.log(`[ROUTE HIT] /api/quizzes${req.path}`);
+  next();
+});
+
 router.use(protect);
 
 router.post('/generate', async (req, res) => {

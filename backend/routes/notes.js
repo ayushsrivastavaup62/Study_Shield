@@ -48,6 +48,11 @@ const normalizeNoteInput = (body) => {
   };
 };
 
+router.use((req, res, next) => {
+  console.log(`[ROUTE HIT] /api/notes${req.path}`);
+  next();
+});
+
 router.use(protect);
 
 router.post('/generate', async (req, res) => {
