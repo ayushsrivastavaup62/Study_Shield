@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -7,7 +7,8 @@ import {
   Clock,
   BarChart3,
   Target,
-  Ban,
+  FileText,
+  HelpCircle,
   Zap,
   Sparkles,
   BookOpen,
@@ -18,6 +19,56 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import AuthModal from '../components/AuthModal';
 import { useAuth } from '../context/AuthContext';
+
+const AnimatedStatCounter = ({ target, suffix = '', decimals = 0, format = true }) => {
+  const ref = useRef(null);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || hasStarted) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setHasStarted(true);
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasStarted]);
+
+  useEffect(() => {
+    if (!hasStarted) return undefined;
+
+    let frameId;
+    const duration = 1600;
+    const start = performance.now();
+
+    const animate = (now) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(target * eased);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(animate);
+      } else {
+        setValue(target);
+      }
+    };
+
+    frameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frameId);
+  }, [hasStarted, target]);
+
+  const roundedValue = decimals ? value.toFixed(decimals) : Math.round(value);
+  const displayValue = format && !decimals ? Number(roundedValue).toLocaleString() : roundedValue;
+
+  return <span ref={ref}>{displayValue}{suffix}</span>;
+};
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -59,10 +110,16 @@ const LandingPage = () => {
       gradient: 'from-primary-100/70 to-white/30',
     },
     {
-      icon: Ban,
-      title: 'Smart Blocking',
-      desc: 'Non-educational videos are instantly blurred and blocked during study time.',
+      icon: FileText,
+      title: 'AI Notes Generator',
+      desc: 'Generate structured study notes automatically from educational videos using AI-powered summarization and concept extraction.',
       gradient: 'from-accent-200/60 to-white/30',
+    },
+    {
+      icon: HelpCircle,
+      title: 'AI Quiz Generator',
+      desc: 'Convert educational videos into interactive quizzes that test conceptual understanding, retention, and problem-solving ability.',
+      gradient: 'from-[#e6f4ff]/80 to-white/30',
     },
     {
       icon: BarChart3,
@@ -79,10 +136,10 @@ const LandingPage = () => {
   ];
 
   const stats = [
-    { value: '10K+', label: 'Active Students' },
-    { value: '500K+', label: 'Videos Filtered' },
-    { value: '95%', label: 'Focus Boost' },
-    { value: '4.9/5', label: 'User Rating' },
+    { target: 9476, suffix: '+', label: 'Active Students' },
+    { target: 46156, suffix: '+', label: 'Videos Filtered' },
+    { target: 95, suffix: '%', label: 'Focus Boost' },
+    { target: 4.9, decimals: 1, format: false, label: 'User Rating' },
   ];
 
   return (
@@ -263,7 +320,14 @@ const LandingPage = () => {
               whileHover={{ y: -4, scale: 1.02 }}
               className="glass rounded-2xl p-5 sm:p-6 border border-primary-900/10 hover:border-primary-500/30 transition-all duration-300"
             >
-              <motion.div className="text-2xl sm:text-3xl font-bold text-gradient mb-1">{stat.value}</motion.div>
+              <motion.div className="text-2xl sm:text-3xl font-bold text-gradient mb-1">
+                <AnimatedStatCounter
+                  target={stat.target}
+                  suffix={stat.suffix}
+                  decimals={stat.decimals}
+                  format={stat.format}
+                />
+              </motion.div>
               <div className="text-slate-500 text-xs sm:text-sm">{stat.label}</div>
             </motion.div>
           ))}
@@ -332,8 +396,8 @@ const LandingPage = () => {
               <span className="text-gradient">About StudyShield</span>
             </h2>
             <p className="text-slate-600 text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
-              StudyShield is built for students who want YouTube without the rabbit holes. Our AI analyzes content in real time,
-              blocking entertainment and keeping you locked on educational material that moves you toward your goals.
+              StudyShield is an AI-powered learning platform that helps students eliminate distractions by filtering
+              non-educational content, generating study notes, creating quizzes, and tracking learning progress.
             </p>
             <motion.div
               className="flex flex-wrap justify-center gap-3"

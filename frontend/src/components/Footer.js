@@ -4,15 +4,58 @@ import { BookOpen, Mail, Phone, Github, Twitter, Linkedin, Send } from 'lucide-r
 
 const Footer = () => {
   const [form, setForm] = useState({ name: '', email: '', message: '' });
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState({ type: '', message: '' });
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
+    if (isSending) return;
+
+    const serviceId = process.env.REACT_APP_EMAILJS_SERVICE_ID;
+    const templateId = process.env.REACT_APP_EMAILJS_TEMPLATE_ID;
+    const publicKey = process.env.REACT_APP_EMAILJS_PUBLIC_KEY;
+    const toEmail = process.env.REACT_APP_CONTACT_TO_EMAIL || 'ayushsrivastavaup62@gmail.com';
+
+    if (!serviceId || !templateId || !publicKey) {
+      setStatus({
+        type: 'error',
+        message: 'Contact form is not configured yet. Please add the EmailJS environment variables.',
+      });
+      return;
+    }
+
+    setIsSending(true);
+    setStatus({ type: '', message: '' });
+
+    try {
+      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_id: serviceId,
+          template_id: templateId,
+          user_id: publicKey,
+          template_params: {
+            to_email: toEmail,
+            from_name: form.name,
+            from_email: form.email,
+            reply_to: form.email,
+            message: form.message,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('EmailJS request failed');
+      }
+
       setForm({ name: '', email: '', message: '' });
-    }, 3000);
+      setStatus({ type: 'success', message: 'Message sent successfully.' });
+    } catch (error) {
+      setStatus({ type: 'error', message: 'Could not send your message. Please try again.' });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -83,7 +126,14 @@ const Footer = () => {
             </ul>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }}>
+          <motion.div
+            id="footer-contact"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.15 }}
+            className="scroll-mt-24"
+          >
             <h4 className="font-semibold mb-4 text-primary-900">Contact</h4>
             <ul className="space-y-3 text-sm">
               <li>
@@ -117,6 +167,7 @@ const Footer = () => {
                 type="text"
                 placeholder="Your name"
                 required
+                disabled={isSending}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="input-modern w-full"
@@ -125,6 +176,7 @@ const Footer = () => {
                 type="email"
                 placeholder="Your email"
                 required
+                disabled={isSending}
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="input-modern w-full"
@@ -133,17 +185,24 @@ const Footer = () => {
                 placeholder="Your message"
                 required
                 rows={3}
+                disabled={isSending}
                 value={form.message}
                 onChange={(e) => setForm({ ...form, message: e.target.value })}
                 className="input-modern w-full resize-none"
               />
+              {status.message && (
+                <p className={`text-sm ${status.type === 'success' ? 'text-emerald-700' : 'text-accent-700'}`}>
+                  {status.message}
+                </p>
+              )}
               <motion.button
                 type="submit"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient rounded-xl font-semibold text-sm ripple"
+                disabled={isSending}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient rounded-xl font-semibold text-sm ripple disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {submitted ? 'Message Sent!' : (
+                {isSending ? 'Sending...' : (
                   <>
                     <Send className="w-4 h-4" />
                     Send Message
@@ -156,7 +215,17 @@ const Footer = () => {
 
         <div className="mt-12 pt-8 border-t border-primary-900/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-600">
           <p>© {new Date().getFullYear()} StudyShield. All rights reserved.</p>
-          <p className="text-slate-500">Built for focused learners everywhere.</p>
+          <p className="text-slate-500">
+            Built and Brained by{' '}
+            <a
+              href="https://ayush-portfolio-ten-omega.vercel.app/"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-primary-700 hover:text-primary-900 underline decoration-primary-400/40 underline-offset-4 transition-colors"
+            >
+              Ayush Srivastava
+            </a>
+          </p>
         </div>
       </div>
     </footer>

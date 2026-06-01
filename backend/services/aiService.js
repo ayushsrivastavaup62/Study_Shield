@@ -665,82 +665,225 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
       .slice(0, 10);
   }
 
+  getQuizContext(videoData = {}, notes = null, transcript = '') {
+    const notesParts = [
+      notes?.rawNotesText,
+      notes?.summary,
+      Array.isArray(notes?.keyPoints) ? notes.keyPoints.join('\n') : '',
+      Array.isArray(notes?.importantConcepts) ? notes.importantConcepts.join('\n') : '',
+      Array.isArray(notes?.revisionNotes) ? notes.revisionNotes.join('\n') : notes?.revisionNotes,
+      notes?.quickRecap,
+    ].filter(Boolean);
+    const notesText = notesParts.join('\n').trim();
+    const metadataParts = [
+      videoData.description,
+      Array.isArray(videoData.tags) ? videoData.tags.join(', ') : '',
+      videoData.category || videoData.categoryId,
+    ].filter(Boolean);
+    const metadataText = metadataParts.join('\n').trim();
+    const titleText = String(videoData.title || videoData.videoTitle || '').trim();
+
+    if (String(transcript || '').trim()) return { source: 'transcript', text: String(transcript).trim(), notesText };
+    if (notesText) return { source: 'notes', text: notesText, notesText };
+    if (metadataText) return { source: 'metadata', text: `${metadataText}\n${titleText}`.trim(), notesText };
+    return { source: 'title', text: titleText || 'General educational topic', notesText };
+  }
+
+  getBadQuizQuestionPatterns() {
+    return [
+      /main topic/i,
+      /video title/i,
+      /\bsource\b/i,
+      /\bchannel\b/i,
+      /best way to study/i,
+      /\brevise\b/i,
+      /\brevising\b/i,
+      /watching this video/i,
+      /what should you do/i,
+      /confusing parts/i,
+      /available context/i,
+      /generated notes/i,
+      /\bmetadata\b/i,
+      /selected educational video/i,
+      /\bthumbnail\b/i,
+      /\blike count\b/i,
+      /\bupload date\b/i,
+    ];
+  }
+
+  validateQuizQuestionQuality(question = {}) {
+    const text = [
+      question.question,
+      ...(Array.isArray(question.options) ? question.options : []),
+      question.explanation,
+    ].join(' ');
+    return !this.getBadQuizQuestionPatterns().some((pattern) => pattern.test(text));
+  }
+
+  filterGenericQuizQuestions(questions = []) {
+    let rejectedCount = 0;
+    const accepted = questions.filter((question) => {
+      const isValid = this.validateQuizQuestionQuality(question);
+      if (!isValid) rejectedCount += 1;
+      return isValid;
+    });
+
+    return { accepted, rejectedCount };
+  }
+
+  extractFallbackConcepts(videoData = {}, notes = null) {
+    const title = String(videoData.title || videoData.videoTitle || '').trim();
+    const description = String(videoData.description || notes?.summary || '').trim();
+    const tags = Array.isArray(videoData.tags) ? videoData.tags.map((tag) => String(tag).trim()).filter(Boolean) : [];
+    const noteConcepts = Array.isArray(notes?.importantConcepts)
+      ? notes.importantConcepts.map((concept) => String(concept).trim()).filter(Boolean)
+      : [];
+    const explicitConcepts = [...noteConcepts, ...tags].filter((concept) => concept.length > 2);
+    const baseTopic = title || explicitConcepts[0] || videoData.category || 'the lesson topic';
+    const lowerText = `${title} ${description} ${explicitConcepts.join(' ')}`.toLowerCase();
+
+    if (/airplane|aeroplane|aircraft|flight|fly|flying|wing|aviation/.test(lowerText)) {
+      return {
+        topic: 'airplane flight',
+        concepts: ['lift', 'thrust', 'drag', 'weight', 'Bernoulli principle', 'air pressure', 'wing shape', 'angle of attack', 'airflow', 'flight mechanics'],
+        mechanism: 'wings redirect airflow and create pressure differences while engines provide thrust',
+        misconception: 'airplanes do not fly because engines alone push them upward',
+        formula: 'net force depends on the balance of lift, weight, thrust, and drag',
+      };
+    }
+
+    if (/photosynthesis|plant|chlorophyll|stomata|carbon dioxide|sunlight/.test(lowerText)) {
+      return {
+        topic: 'photosynthesis',
+        concepts: ['chlorophyll', 'sunlight', 'carbon dioxide', 'water', 'glucose', 'oxygen', 'chloroplasts', 'stomata', 'light reactions', 'energy conversion'],
+        mechanism: 'plants convert light energy into chemical energy stored in glucose',
+        misconception: 'plants do not get most of their food directly from soil',
+        formula: '6CO2 + 6H2O + light energy -> C6H12O6 + 6O2',
+      };
+    }
+
+    if (/gravity|gravitation|orbit|planet|satellite|newton|space/.test(lowerText)) {
+      return {
+        topic: 'gravity and orbital motion',
+        concepts: ['gravitational force', 'mass', 'distance', 'acceleration', 'orbit', 'centripetal force', 'free fall', 'Newton law', 'satellites', 'escape velocity'],
+        mechanism: 'gravity supplies the inward force that bends motion into an orbit',
+        misconception: 'orbiting objects are still falling under gravity',
+        formula: 'F = Gm1m2/r^2',
+      };
+    }
+
+    if (/electric|circuit|voltage|current|resistance|ohm|battery/.test(lowerText)) {
+      return {
+        topic: 'electric circuits',
+        concepts: ['voltage', 'current', 'resistance', 'Ohm law', 'battery', 'series circuit', 'parallel circuit', 'power', 'charge flow', 'conductors'],
+        mechanism: 'voltage drives charge through a circuit while resistance limits current',
+        misconception: 'current is not used up as it passes through circuit components',
+        formula: 'V = IR',
+      };
+    }
+
+    if (/derivative|calculus|slope|rate of change|differentiat/.test(lowerText)) {
+      return {
+        topic: 'derivatives in calculus',
+        concepts: ['derivative', 'slope', 'instantaneous rate of change', 'tangent line', 'limit', 'function', 'critical point', 'chain rule', 'product rule', 'optimization'],
+        mechanism: 'a derivative measures how quickly a function changes at a point',
+        misconception: 'average rate of change is not the same as instantaneous rate of change',
+        formula: "f'(x) = lim h->0 [f(x+h)-f(x)]/h",
+      };
+    }
+
+    const cleanedWords = `${baseTopic} ${description}`
+      .replace(/https?:\/\/\S+/g, ' ')
+      .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+      .split(/\s+/)
+      .map((word) => word.trim())
+      .filter((word) => word.length > 3 && !/^(what|when|where|which|with|from|this|that|video|lesson|learn|explained|introduction|complete|tutorial)$/i.test(word));
+    const concepts = [...new Set([...explicitConcepts, ...cleanedWords])].slice(0, 10);
+
+    while (concepts.length < 10) concepts.push(`${baseTopic} concept ${concepts.length + 1}`);
+
+    return {
+      topic: baseTopic,
+      concepts,
+      mechanism: `the cause-and-effect relationship behind ${baseTopic}`,
+      misconception: `a common misconception is treating ${baseTopic} as memorization instead of understanding the mechanism`,
+      formula: `the core relationship or rule used in ${baseTopic}`,
+    };
+  }
+
   buildFallbackQuiz(videoData = {}, notes = null) {
-    const title = videoData.title || videoData.videoTitle || 'the selected topic';
-    const description = videoData.description || notes?.summary || 'Use the video explanation and notes to answer.';
-    const concepts = Array.isArray(notes?.importantConcepts) && notes.importantConcepts.length
-      ? notes.importantConcepts.slice(0, 4)
-      : [videoData.category || videoData.categoryId || title];
+    const fallback = this.extractFallbackConcepts(videoData, notes);
+    const [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10] = fallback.concepts;
 
     return [
       {
-        question: `What is the main topic discussed in "${title}"?`,
-        options: [title, 'Unrelated entertainment content', 'Channel promotion only', 'A random news update'],
-        correctAnswer: title,
-        explanation: `The quiz is based on the selected educational video: "${title}".`,
+        question: `In ${fallback.topic}, which idea most directly explains how the main effect is produced?`,
+        options: [fallback.mechanism, `${c1} happens without any force or interaction`, `${c2} only changes the name of the process`, `${c3} is unrelated to the result`],
+        correctAnswer: fallback.mechanism,
+        explanation: `The central mechanism in ${fallback.topic} connects the important conditions to the result being studied.`,
         difficulty: 'Easy',
       },
       {
-        question: 'Which source should you prioritize while revising this video?',
-        options: ['The video explanation and notes', 'Unrelated comments', 'Random recommendations', 'Only the thumbnail'],
-        correctAnswer: 'The video explanation and notes',
-        explanation: 'Revision should focus on the educational content and generated study notes.',
+        question: `Which term is a key concept for understanding ${fallback.topic}?`,
+        options: [c1, `A factor that replaces every other part of ${fallback.topic}`, `A result with no cause in ${fallback.topic}`, `A label with no role in ${fallback.topic}`],
+        correctAnswer: c1,
+        explanation: `${c1} is part of the subject matter and helps explain ${fallback.topic}.`,
         difficulty: 'Easy',
       },
       {
-        question: `Which detail best matches the available context for "${title}"?`,
-        options: [description.slice(0, 120) || title, 'A gaming walkthrough', 'A music release', 'A prank compilation'],
-        correctAnswer: description.slice(0, 120) || title,
-        explanation: 'The available metadata and notes provide the topic context for the quiz.',
-        difficulty: 'Medium',
-      },
-      {
-        question: 'What is the best way to check understanding after watching?',
-        options: ['Explain the concept in your own words', 'Skip the hard parts', 'Only memorize the title', 'Avoid practice'],
-        correctAnswer: 'Explain the concept in your own words',
-        explanation: 'Rephrasing ideas is a strong test of understanding.',
-        difficulty: 'Medium',
-      },
-      {
-        question: `Which concept is most likely connected to "${title}"?`,
-        options: [String(concepts[0]), 'Celebrity gossip', 'Movie box office', 'Sports highlights'],
-        correctAnswer: String(concepts[0]),
-        explanation: 'This option comes from the video metadata or generated notes.',
+        question: `What does ${c2} usually describe in ${fallback.topic}?`,
+        options: [`A concept or factor used to explain ${fallback.topic}`, `A factor that cannot affect ${fallback.topic}`, `A conclusion that ignores the mechanism`, `A term outside the subject relationship`],
+        correctAnswer: `A concept or factor used to explain ${fallback.topic}`,
+        explanation: `${c2} should be understood as part of the content, not as external video information.`,
         difficulty: 'Easy',
       },
       {
-        question: 'When solving a related problem, what should you identify first?',
-        options: ['The core concept being tested', 'The video length', 'The like count', 'The upload date only'],
-        correctAnswer: 'The core concept being tested',
-        explanation: 'Problem-solving starts by identifying the concept and applying the right method.',
-        difficulty: 'Medium',
-      },
-      {
-        question: 'Which habit helps avoid common mistakes in this topic?',
-        options: ['Review definitions and worked examples', 'Guess without checking', 'Ignore edge cases', 'Watch unrelated videos'],
-        correctAnswer: 'Review definitions and worked examples',
-        explanation: 'Definitions and examples usually expose the assumptions and steps where mistakes happen.',
-        difficulty: 'Medium',
-      },
-      {
-        question: 'What should you do with confusing parts of the lesson?',
-        options: ['Rewatch and turn them into revision prompts', 'Skip them permanently', 'Delete your notes', 'Switch to distractions'],
-        correctAnswer: 'Rewatch and turn them into revision prompts',
-        explanation: 'Targeted revision turns weak spots into concrete study tasks.',
+        question: `Which pair of ideas is most likely connected when reasoning about ${fallback.topic}?`,
+        options: [`${c3} and ${c4}`, `${c3} and an unrelated surface detail`, `${c4} and a random label`, 'two ideas outside the lesson concept'],
+        correctAnswer: `${c3} and ${c4}`,
+        explanation: `${c3} and ${c4} are subject concepts that can interact in explanations or examples.`,
         difficulty: 'Easy',
       },
       {
-        question: `How should "${title}" be connected to future study?`,
-        options: ['Practice related questions and compare explanations', 'Avoid practice problems', 'Only save the thumbnail', 'Use unrelated examples'],
-        correctAnswer: 'Practice related questions and compare explanations',
-        explanation: 'Applying the topic to questions strengthens understanding beyond passive watching.',
+        question: `Which statement best defines the role of ${c5} in ${fallback.topic}?`,
+        options: [`It is a content-specific factor that affects how the topic works`, `It has no possible effect on ${fallback.topic}`, `It replaces every other factor in ${fallback.topic}`, `It is only a decorative label`],
+        correctAnswer: 'It is a content-specific factor that affects how the topic works',
+        explanation: `${c5} matters because it helps explain the actual phenomenon or method being taught.`,
+        difficulty: 'Medium',
+      },
+      {
+        question: `A learner applies ${c6} to a new example of ${fallback.topic}. What should they focus on first?`,
+        options: [`How ${c6} changes the subject-matter outcome`, `Whether ${c6} can be ignored completely`, `Whether ${c6} is only a name with no effect`, `How ${c6} avoids interacting with other factors`],
+        correctAnswer: `How ${c6} changes the subject-matter outcome`,
+        explanation: `Application questions require connecting ${c6} to the underlying mechanism or result.`,
+        difficulty: 'Medium',
+      },
+      {
+        question: `Which misconception about ${fallback.topic} should be avoided?`,
+        options: [fallback.misconception, `${c7} always means the opposite of ${c8}`, `${c8} is a platform setting`, `${c7} cannot be used in examples`],
+        correctAnswer: fallback.misconception,
+        explanation: `This misconception blocks real understanding because ${fallback.topic} depends on mechanisms and relationships.`,
+        difficulty: 'Medium',
+      },
+      {
+        question: `If ${c7} increases while other conditions stay the same, what kind of answer is usually expected?`,
+        options: [`A reasoned prediction about how ${fallback.topic} changes`, `A claim that ${c7} cannot affect anything`, `A definition with no connection to the situation`, `A conclusion that ignores all other conditions`],
+        correctAnswer: `A reasoned prediction about how ${fallback.topic} changes`,
+        explanation: `Reasoning questions test whether changing ${c7} affects the concept, process, or result.`,
+        difficulty: 'Medium',
+      },
+      {
+        question: `Which option best represents the core relationship used in ${fallback.topic}?`,
+        options: [fallback.formula, `${c8} is unrelated to ${c9}`, `${c9} always cancels ${c10} in every case`, `${c8}, ${c9}, and ${c10} never interact`],
+        correctAnswer: fallback.formula,
+        explanation: `The core relationship summarizes how important quantities, rules, or concepts fit together in ${fallback.topic}.`,
         difficulty: 'Hard',
       },
       {
-        question: 'What is the most reliable evidence that you understood the lesson?',
-        options: ['You can apply it to a new example', 'You remember the background color', 'You watched at high speed only', 'You skipped the recap'],
-        correctAnswer: 'You can apply it to a new example',
-        explanation: 'Transfer to a new example shows real conceptual understanding.',
+        question: `For a harder analysis of ${fallback.topic}, which approach is most valid?`,
+        options: [`Compare how ${c8}, ${c9}, and ${c10} interact to produce the result`, 'Choose the option that sounds most familiar', 'Use the shortest option every time', 'Ignore the mechanism and memorize labels only'],
+        correctAnswer: `Compare how ${c8}, ${c9}, and ${c10} interact to produce the result`,
+        explanation: `Hard analytical questions require combining multiple concepts and explaining their interaction.`,
         difficulty: 'Hard',
       },
     ];
@@ -760,15 +903,27 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
       }
     }
 
-    const contextSource = transcript ? 'transcript' : notesText ? 'AI-generated notes' : 'video metadata';
+    const quizContext = this.getQuizContext(videoData, quizNotes, transcript);
+    notesText = quizContext.notesText || notesText;
+    console.log('[AI QUIZ] Source used:', quizContext.source);
 
     if (!this.genAI && this.provider === 'GEMINI') {
-      return this.buildFallbackQuiz(videoData, quizNotes);
+      const fallbackQuestions = this.buildFallbackQuiz(videoData, quizNotes);
+      const fallbackValidation = this.filterGenericQuizQuestions(fallbackQuestions);
+      console.log('[AI QUIZ] Parsed quiz count:', fallbackQuestions.length);
+      console.log('[AI QUIZ] Rejected generic questions:', fallbackValidation.rejectedCount);
+      console.log('[AI QUIZ] Final quiz quality validation status:', fallbackValidation.rejectedCount === 0 ? 'passed' : 'failed');
+      return fallbackValidation.accepted.length === 10 ? fallbackValidation.accepted : fallbackQuestions;
     }
 
     try {
       if (this.provider !== 'GEMINI' || !this.genAI) {
-        return this.buildFallbackQuiz(videoData, quizNotes);
+        const fallbackQuestions = this.buildFallbackQuiz(videoData, quizNotes);
+        const fallbackValidation = this.filterGenericQuizQuestions(fallbackQuestions);
+        console.log('[AI QUIZ] Parsed quiz count:', fallbackQuestions.length);
+        console.log('[AI QUIZ] Rejected generic questions:', fallbackValidation.rejectedCount);
+        console.log('[AI QUIZ] Final quiz quality validation status:', fallbackValidation.rejectedCount === 0 ? 'passed' : 'failed');
+        return fallbackValidation.accepted.length === 10 ? fallbackValidation.accepted : fallbackQuestions;
       }
 
       await this.ensureGeminiInitialized();
@@ -780,7 +935,7 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
         },
       });
 
-      const prompt = `Create a topic-specific quiz for this educational YouTube video.
+      const prompt = `Create a real teacher-quality, subject-specific quiz for the educational topic in the context.
 
 Return ONLY valid JSON.
 Do not include markdown.
@@ -804,12 +959,28 @@ Rules:
 - Generate exactly 10 MCQs.
 - Each question must have exactly 4 options.
 - correctAnswer must exactly match one option string.
+- Question mix must be exactly:
+  - 3 conceptual questions
+  - 2 definition questions
+  - 2 application/reasoning questions
+  - 2 common misconception questions
+  - 1 hard analytical question
 - Difficulty mix must be 4 Easy, 4 Medium, 2 Hard.
-- Test definitions, concepts, applications, problem-solving, and common mistakes.
-- Do not ask generic YouTube/video metadata questions unless no better context exists.
-- Make the quiz specific to the actual topic.
+- Generate questions ONLY about the subject matter.
+- Infer the real educational topic from the available context. If only title or metadata is available, still create concept-based questions about that topic.
+- Every question must test a concept, definition, mechanism, formula, application, misconception, or reasoning step from the topic.
+- Options must be meaningful subject-matter distractors, not obviously unrelated choices.
+- Correct answers must be educationally valid.
+- Explanations must briefly teach the concept.
+- Never ask about the video title.
+- Never ask about the channel, creator, source, metadata, notes, transcript, or available context.
+- Never ask about revision habits, study methods, confusing parts, watching the video, or generic learning advice.
+- Reject and replace any question containing these phrases: main topic, video title, source, channel, best way to study, revise, watching this video, what should you do, confusing parts, available context, generated notes, metadata, selected educational video.
 
-Context priority used: ${contextSource}
+Context priority used: ${quizContext.source}
+
+Primary quiz context:
+${quizContext.text || 'No primary context available.'}
 
 Video metadata:
 Title: ${videoData.title || videoData.videoTitle || 'N/A'}
@@ -835,15 +1006,29 @@ ${transcript || 'Transcript unavailable.'}`;
       console.log('[AI QUIZ] Cleaned Gemini JSON:', cleaned);
       const parsed = JSON.parse(cleaned);
       const questions = this.normalizeQuizQuestions(parsed);
+      const qualityResult = this.filterGenericQuizQuestions(questions);
+      console.log('[AI QUIZ] Parsed quiz count:', questions.length);
+      console.log('[AI QUIZ] Rejected generic questions:', qualityResult.rejectedCount);
+      console.log('[AI QUIZ] Final quiz quality validation status:', qualityResult.accepted.length === 10 ? 'passed' : 'failed');
 
-      if (questions.length < 5) {
-        throw new Error('Gemini returned too few valid quiz questions');
+      if (qualityResult.accepted.length < 10) {
+        throw new Error('Gemini returned too few topic-specific quiz questions');
       }
 
-      return questions;
+      return qualityResult.accepted.slice(0, 10);
     } catch (error) {
       console.warn('[AI QUIZ] Gemini quiz generation failed, using metadata-based fallback:', error.message);
-      return this.buildFallbackQuiz(videoData, quizNotes);
+      const fallbackQuestions = this.buildFallbackQuiz(videoData, quizNotes);
+      const fallbackValidation = this.filterGenericQuizQuestions(fallbackQuestions);
+      console.log('[AI QUIZ] Parsed quiz count:', fallbackQuestions.length);
+      console.log('[AI QUIZ] Rejected generic questions:', fallbackValidation.rejectedCount);
+      console.log('[AI QUIZ] Final quiz quality validation status:', fallbackValidation.rejectedCount === 0 ? 'passed' : 'failed');
+
+      if (fallbackValidation.accepted.length < 10) {
+        throw new Error('Could not generate a topic-specific quiz. Please try again with a video that has clearer educational context.');
+      }
+
+      return fallbackValidation.accepted.slice(0, 10);
     }
   }
 

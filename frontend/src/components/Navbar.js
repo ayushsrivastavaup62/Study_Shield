@@ -19,7 +19,7 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 10);
 
-      const sections = ['features', 'about'];
+      const sections = ['features', 'about', 'footer-contact'];
       let current = '';
       sections.forEach((id) => {
         const el = document.getElementById(id);
@@ -245,6 +245,12 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
                   <motion.span layoutId="nav-indicator" className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient rounded-full" />
                 )}
               </button>
+              <button type="button" onClick={() => scrollTo('footer-contact')} className={navLinkClass('footer-contact')}>
+                Contact Us
+                {activeSection === 'footer-contact' && (
+                  <motion.span layoutId="nav-indicator" className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient rounded-full" />
+                )}
+              </button>
               {showTimer && <StudyTimer compact />}
               <motion.button
                 type="button"
@@ -334,6 +340,9 @@ const Navbar = ({ onGetStarted, onLoginClick, showTimer = true }) => {
               </button>
               <button type="button" onClick={() => scrollTo('about')} className="block w-full text-left py-2 text-slate-700">
                 About
+              </button>
+              <button type="button" onClick={() => scrollTo('footer-contact')} className="block w-full text-left py-2 text-slate-700">
+                Contact Us
               </button>
               {showTimer && <StudyTimer compact />}
               <button type="button" onClick={handleLoginClick} className="w-full py-3 bg-gradient rounded-full font-semibold">

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import YouTube from 'react-youtube';
-import { BookOpenText, FileText, HelpCircle, Home, Loader2, Play, Search, Target } from 'lucide-react';
+import { BarChart3, BookOpenText, FileText, HelpCircle, Home, Loader2, LogOut, Menu, Play, Search, Target, X } from 'lucide-react';
 import axios from 'axios';
 import StudyTimer from '../components/StudyTimer';
 import SearchBar from '../components/SearchBar';
@@ -64,8 +64,10 @@ const StudyInterface = () => {
   const [savingQuiz, setSavingQuiz] = useState(false);
   const [quizSaved, setQuizSaved] = useState(false);
   const [quizStatus, setQuizStatus] = useState(null);
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
 
   const feedRef = useRef(null);
+  const workspaceMenuRef = useRef(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -233,10 +235,56 @@ const StudyInterface = () => {
     []
   );
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (workspaceMenuRef.current && !workspaceMenuRef.current.contains(event.target)) {
+        setWorkspaceMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const loadMore = useCallback(() => {
     if (loadingMore || !nextPageToken || loading || quotaExceeded) return;
     fetchVideos(activeQueryRef.current, nextPageToken, true);
   }, [loadingMore, nextPageToken, loading, quotaExceeded, fetchVideos]);
+
+  const closeWorkspaceMenu = () => setWorkspaceMenuOpen(false);
+
+  const goDashboard = () => {
+    navigate('/dashboard');
+    closeWorkspaceMenu();
+  };
+
+  const goNotes = () => {
+    navigate('/notes');
+    closeWorkspaceMenu();
+  };
+
+  const goQuizzes = () => {
+    navigate('/quizzes');
+    closeWorkspaceMenu();
+  };
+
+  const toggleFocusMode = () => {
+    setFocusMode((current) => !current);
+    closeWorkspaceMenu();
+  };
+
+  const handleLogout = () => {
+    logout();
+    closeWorkspaceMenu();
+  };
+
+  const menuItems = [
+    { label: focusMode ? 'Exit Focus Mode' : 'Focus Mode', icon: Target, onClick: toggleFocusMode },
+    { label: 'Dashboard', icon: BarChart3, onClick: goDashboard },
+    { label: 'My Notes', icon: BookOpenText, onClick: goNotes },
+    { label: 'My Quizzes', icon: HelpCircle, onClick: goQuizzes },
+    { label: 'Logout', icon: LogOut, onClick: handleLogout, danger: true },
+  ];
 
   const handleVideoSelect = async (video) => {
     const { videoId } = video;
@@ -507,82 +555,80 @@ const StudyInterface = () => {
       className="min-h-screen bg-gradient-hero flex flex-col text-primary-900"
     >
       <header className="glass-dark border-b border-primary-900/10 px-4 sm:px-6 py-3 sticky top-0 z-40 backdrop-blur-xl">
-        <motion.div className="max-w-[1920px] mx-auto flex items-center justify-between gap-4">
-          <motion.div className="flex items-center gap-3 shrink-0" whileHover={{ x: -2 }}>
+        <motion.div className="max-w-[1920px] mx-auto grid grid-cols-[auto_1fr_auto] items-center gap-3 sm:gap-5">
+          <motion.div className="flex items-center gap-2 sm:gap-2.5 min-w-0" whileHover={{ x: -1 }}>
             <button
               type="button"
-            onClick={() => navigate('/')}
-              className="p-2.5 hover:bg-white/70 rounded-xl transition-colors border border-primary-900/10"
+              onClick={() => navigate('/')}
+              className="p-2.5 hover:bg-white/75 rounded-xl transition-all border border-primary-900/10 hover:border-primary-500/30 shadow-sm"
               aria-label="Home"
             >
               <Home className="w-5 h-5" />
             </button>
-            <button
-              type="button"
-              onClick={() => navigate('/notes')}
-              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-full glass border border-primary-900/10 text-xs font-semibold text-primary-900 hover:border-primary-500/30 transition-colors"
-            >
-              <BookOpenText className="w-4 h-4" />
-              My Notes
-            </button>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight hidden sm:block">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate">
               <span className="text-gradient">Study</span>
               <span className="text-primary-900">Shield</span>
             </h1>
           </motion.div>
 
-          <SearchBar
-            className="flex-1 max-w-xl hidden md:flex"
-            value={searchInput}
-            onChange={setSearchInput}
-            onSearch={runSearch}
-            loading={loading}
-          />
-
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex justify-center min-w-0">
             <StudyTimer />
+          </div>
+
+          <div ref={workspaceMenuRef} className="relative flex justify-end">
             <motion.button
               type="button"
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setFocusMode(!focusMode)}
-              className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all border ${
-                focusMode
-                  ? 'bg-gradient border-transparent text-white shadow-glow-sm'
-                  : 'glass border-primary-900/10 hover:border-primary-500/30 text-primary-900'
-              }`}
+              whileHover={{ y: -1, scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => setWorkspaceMenuOpen((open) => !open)}
+              className="p-2.5 rounded-2xl glass border border-primary-900/10 hover:border-primary-500/35 hover:bg-white/75 transition-all shadow-sm"
+              aria-label="Open workspace menu"
+              aria-expanded={workspaceMenuOpen}
             >
-              <Target className="w-4 h-4" />
-              Focus
+              {workspaceMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </motion.button>
-            
-            {user && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 glass rounded-full border border-primary-900/10">
-                <div className="w-5 h-5 rounded-full bg-gradient flex items-center justify-center text-[10px] font-bold text-white uppercase">
-                  {user.name.charAt(0)}
-                </div>
-                <span className="text-xs font-medium text-primary-900 max-w-[80px] truncate">{user.name}</span>
-              </div>
-            )}
-            
-            {user && (
-              <button
-                type="button"
-                onClick={logout}
-                className="hidden sm:block px-3 py-1.5 border border-accent-500/25 hover:border-accent-600/70 bg-accent-100/70 text-accent-700 rounded-full text-xs font-semibold transition-colors"
-              >
-                Logout
-              </button>
-            )}
+
+            <AnimatePresence>
+              {workspaceMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.96 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  className="absolute right-0 top-full mt-3 w-[min(18rem,calc(100vw-2rem))] glass-dark rounded-2xl border border-primary-900/10 shadow-glow-sm p-3 overflow-hidden"
+                >
+                  <div className="flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/55 border border-primary-900/10 mb-2">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient flex items-center justify-center text-sm font-bold text-white uppercase shrink-0">
+                      {user.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs uppercase tracking-wider text-slate-500">Signed in as</p>
+                      <p className="font-semibold text-primary-900 truncate">{user.name}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {menuItems.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={item.onClick}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                          item.danger
+                            ? 'text-accent-700 hover:bg-accent-100/75'
+                            : 'text-primary-900 hover:bg-white/70 hover:translate-x-0.5'
+                        }`}
+                      >
+                        <item.icon className="w-4 h-4 shrink-0" />
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
-
-        <SearchBar
-          className="md:hidden mt-3"
-          value={searchInput}
-          onChange={setSearchInput}
-          onSearch={runSearch}
-          loading={loading}
-        />
       </header>
 
       <AnimatePresence>
@@ -609,8 +655,14 @@ const StudyInterface = () => {
         <aside
           className={`${focusMode ? 'hidden' : 'flex'} flex-col w-full lg:w-[380px] xl:w-[420px] glass-dark border-r border-primary-900/10 shrink-0`}
         >
-          <div className="px-4 py-3 border-b border-primary-900/10">
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Study Feed</h2>
+          <div className="px-4 py-4 border-b border-primary-900/10">
+            <SearchBar
+              className="w-full"
+              value={searchInput}
+              onChange={setSearchInput}
+              onSearch={runSearch}
+              loading={loading}
+            />
           </div>
           <div ref={feedRef} className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[40vh] lg:max-h-none">
             {loading && videos.length === 0 ? (
