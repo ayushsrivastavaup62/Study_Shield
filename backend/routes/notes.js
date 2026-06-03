@@ -11,8 +11,25 @@ const buildVideoUrl = (videoId, existingUrl) => {
 };
 
 const sanitizeArray = (value) => {
-  if (Array.isArray(value)) return value.filter(Boolean).map((item) => String(item).trim()).filter(Boolean);
+  const toText = (item) => {
+    if (item === null || item === undefined) return '';
+    if (Array.isArray(item)) return item.map(toText).filter(Boolean).join(' ');
+    if (typeof item === 'object') return Object.values(item).map(toText).filter(Boolean).join(' ');
+    return String(item).trim();
+  };
+
+  if (Array.isArray(value)) return value.map(toText).filter(Boolean);
+  if (value && typeof value === 'object') return Object.values(value).map(toText).filter(Boolean);
   if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        return sanitizeArray(JSON.parse(trimmed));
+      } catch (error) {
+        return trimmed.replace(/[{}"]/g, '').split(',').map((item) => item.trim()).filter(Boolean);
+      }
+    }
+
     return value
       .split(/\n|;/)
       .map((item) => item.replace(/^[-*\d.\s]+/, '').trim())
@@ -23,6 +40,7 @@ const sanitizeArray = (value) => {
 
 const sanitizeText = (value) => {
   if (Array.isArray(value)) return sanitizeArray(value).join('\n');
+  if (value && typeof value === 'object') return sanitizeArray(value).join('\n');
   return value || '';
 };
 
@@ -38,13 +56,13 @@ const normalizeNoteInput = (body) => {
     thumbnail: videoData.thumbnail || body.thumbnail || '',
     channelTitle: videoData.channelTitle || body.channelTitle || '',
     summary: generatedNotes.summary || '',
-    keyPoints: sanitizeArray(generatedNotes.keyPoints),
-    importantConcepts: sanitizeArray(generatedNotes.importantConcepts),
+    keyPoints: sanitizeArray(generatedNotes.keyPoints || generatedNotes.keyConcepts),
+    importantConcepts: sanitizeArray(generatedNotes.importantConcepts || generatedNotes.importantPoints),
     revisionNotes: sanitizeText(generatedNotes.revisionNotes),
-    quickRecap: generatedNotes.quickRecap || '',
-    suggestedFollowUpTopics: sanitizeArray(generatedNotes.suggestedFollowUpTopics),
+    quickRecap: '',
+    suggestedFollowUpTopics: [],
     transcriptSource: generatedNotes.transcriptSource || 'metadata',
-    rawNotesText: generatedNotes.rawNotesText || '',
+    rawNotesText: '',
   };
 };
 

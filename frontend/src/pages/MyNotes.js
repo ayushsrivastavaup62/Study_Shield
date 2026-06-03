@@ -13,6 +13,23 @@ const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const formatDate = (value) =>
   value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
 
+const noteValueToText = (value) => {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) return value.map(noteValueToText).filter(Boolean).join(' ');
+  if (typeof value === 'object') return Object.values(value).map(noteValueToText).filter(Boolean).join(' ');
+
+  const text = String(value).trim();
+  if ((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']'))) {
+    try {
+      return noteValueToText(JSON.parse(text));
+    } catch (error) {
+      return text.replace(/[{}"]/g, '').replace(/,/g, ' ').trim();
+    }
+  }
+
+  return text;
+};
+
 const MyNotes = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -56,10 +73,10 @@ const MyNotes = () => {
       const haystack = [
         note.videoTitle,
         note.channelTitle,
-        note.summary,
-        note.revisionNotes,
-        ...(note.keyPoints || []),
-        ...(note.importantConcepts || []),
+        noteValueToText(note.summary),
+        noteValueToText(note.revisionNotes),
+        noteValueToText(note.keyPoints),
+        noteValueToText(note.importantConcepts),
       ]
         .join(' ')
         .toLowerCase();
@@ -170,7 +187,7 @@ const MyNotes = () => {
                 <div className="p-5">
                   <p className="text-xs text-slate-500 mb-2">Updated {formatDate(note.updatedAt)}</p>
                   <h2 className="font-bold text-primary-900 line-clamp-2 mb-2">{note.videoTitle}</h2>
-                  <p className="text-sm text-slate-600 line-clamp-3 mb-4">{note.summary}</p>
+                  <p className="text-sm text-slate-600 line-clamp-3 mb-4">{noteValueToText(note.summary)}</p>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"

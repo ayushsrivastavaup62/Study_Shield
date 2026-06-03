@@ -56,7 +56,24 @@ const formatMinutes = (minutes = 0) => {
 const shortDate = (value) =>
   new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
+const fullDate = (value) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
 const categoryName = (category) => CATEGORY_LABELS[category] || category || 'General Study';
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
+const activityTone = (score = 0) => {
+  if (score >= 6) return 'bg-emerald-700 border-emerald-800 shadow-emerald-700/20';
+  if (score >= 3) return 'bg-emerald-400 border-emerald-500 shadow-emerald-400/20';
+  if (score >= 1) return 'bg-emerald-200 border-emerald-300 shadow-emerald-200/30';
+  return 'bg-white/70 border-primary-900/10';
+};
 
 const SkeletonCard = () => (
   <div className="glass rounded-2xl p-5 border border-primary-900/10 animate-pulse">
@@ -89,6 +106,8 @@ const Dashboard = () => {
   const [weekly, setWeekly] = useState([]);
   const [categories, setCategories] = useState([]);
   const [recent, setRecent] = useState([]);
+  const [activityDays, setActivityDays] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(todayKey());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -116,6 +135,14 @@ const Dashboard = () => {
         setWeekly(weeklyRes.data.weekly || []);
         setCategories(categoriesRes.data.categories || []);
         setRecent(recentRes.data.recent || []);
+
+        try {
+          const activityRes = await axios.get(`${API}/api/analytics/activity-calendar?days=84`);
+          const nextActivityDays = activityRes.data.activity || [];
+          setActivityDays(nextActivityDays);
+        } catch (activityErr) {
+          setActivityDays([]);
+        }
       } catch (err) {
         setError(err.response?.data?.message || 'Analytics could not be loaded right now.');
       } finally {
@@ -143,6 +170,13 @@ const Dashboard = () => {
       })),
     [categories]
   );
+
+  const selectedActivity = useMemo(
+    () => activityDays.find((day) => day.date === selectedDate) || null,
+    [activityDays, selectedDate]
+  );
+
+  const selectedHasActivity = selectedActivity && selectedActivity.activityScore > 0;
 
   const hasData =
     summary &&
@@ -289,6 +323,92 @@ const Dashboard = () => {
                   <p className="text-2xl sm:text-3xl font-bold text-primary-900">{stat.value}</p>
                 </motion.article>
               ))}
+            </section>
+
+            <section className="glass rounded-2xl p-5 sm:p-6 border border-primary-900/10">
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-4 mb-5">
+                    <div>
+                      <h2 className="text-xl font-bold text-primary-900">Activity Calendar</h2>
+                      <p className="text-sm text-slate-500">Daily study activity over the last 12 weeks</p>
+                    </div>
+                    <CalendarDays className="w-5 h-5 text-primary-600 shrink-0" />
+                  </div>
+
+                  <div className="overflow-x-auto pb-2">
+                    <div className="grid grid-flow-col grid-rows-7 auto-cols-[0.9rem] sm:auto-cols-[1rem] gap-1.5 min-w-max">
+                      {activityDays.map((day) => {
+                        const tooltip = `${fullDate(day.date)}\nActivity: ${day.activityScore}\nWatched videos: ${day.watchedVideos}\nNotes generated: ${day.notesGenerated}\nQuizzes attempted: ${day.quizzesAttempted}`;
+                        const isSelected = day.date === selectedDate;
+
+                        return (
+                          <button
+                            key={day.date}
+                            type="button"
+                            title={tooltip}
+                            aria-label={`${fullDate(day.date)} activity score ${day.activityScore}`}
+                            onClick={() => setSelectedDate(day.date)}
+                            className={`h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-[4px] border transition-all duration-200 hover:scale-125 hover:ring-2 hover:ring-primary-300/70 hover:z-10 shadow-sm ${activityTone(day.activityScore)} ${
+                              isSelected ? 'ring-2 ring-primary-700 ring-offset-2 ring-offset-white/70' : ''
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <span>Less</span>
+                    {[0, 1, 3, 6].map((score) => (
+                      <span key={score} className={`h-3.5 w-3.5 rounded-[4px] border ${activityTone(score)}`} />
+                    ))}
+                    <span>More</span>
+                  </div>
+                </div>
+
+                <aside className="w-full lg:w-80 rounded-2xl bg-white/60 border border-primary-900/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                    Selected Date
+                  </p>
+                  <h3 className="text-lg font-bold text-primary-900 mb-4">
+                    {selectedActivity ? fullDate(selectedActivity.date) : fullDate(selectedDate)}
+                  </h3>
+
+                  {selectedHasActivity ? (
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-slate-500">Study time</p>
+                        <p className="font-bold text-primary-900">{formatMinutes(selectedActivity.studyMinutes || 0)}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Videos watched</p>
+                        <p className="font-bold text-primary-900">{selectedActivity.watchedVideos || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Blocked attempts</p>
+                        <p className="font-bold text-primary-900">{selectedActivity.blockedVideos || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Notes generated</p>
+                        <p className="font-bold text-primary-900">{selectedActivity.notesGenerated || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Quizzes attempted</p>
+                        <p className="font-bold text-primary-900">{selectedActivity.quizzesAttempted || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Average quiz score</p>
+                        <p className="font-bold text-primary-900">
+                          {selectedActivity.averageQuizScore === null ? 'N/A' : `${selectedActivity.averageQuizScore}%`}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500">No activity found for this date.</p>
+                  )}
+                </aside>
+              </div>
             </section>
 
             <section className="grid lg:grid-cols-[1.45fr_0.9fr] gap-6">

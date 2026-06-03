@@ -456,10 +456,33 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
   }
 
   normalizeNotesPayload(notes, videoData = {}, transcriptSource = 'metadata') {
+    const cleanJSONLikeText = (value) => {
+      const text = String(value || '').trim();
+      if (!text) return '';
+
+      if ((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']'))) {
+        try {
+          const parsed = JSON.parse(text);
+          if (Array.isArray(parsed)) {
+            return parsed.map((item) => this.noteValueToText(item)).filter(Boolean).join('\n');
+          }
+          if (parsed && typeof parsed === 'object') {
+            return Object.values(parsed).map((item) => this.noteValueToText(item)).filter(Boolean).join('\n');
+          }
+        } catch (error) {
+          return text.replace(/[{}"]/g, '').replace(/,/g, '\n').trim();
+        }
+      }
+
+      return text;
+    };
+
     const safeArray = (value) => {
-      if (Array.isArray(value)) return value.filter(Boolean).map((item) => String(item).trim()).filter(Boolean);
+      if (Array.isArray(value)) return value.map((item) => this.noteValueToText(item)).filter(Boolean);
+      if (value && typeof value === 'object') return Object.values(value).map((item) => this.noteValueToText(item)).filter(Boolean);
       if (typeof value === 'string') {
-        return value
+        const cleaned = cleanJSONLikeText(value);
+        return cleaned
           .split(/\n|;/)
           .map((item) => item.replace(/^[-*\d.\s]+/, '').trim())
           .filter(Boolean);
@@ -468,50 +491,40 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
     };
 
     const safeString = (value) => {
-      if (Array.isArray(value)) return value.filter(Boolean).map((item) => String(item).trim()).filter(Boolean).join('\n');
-      return String(value || '').trim();
+      if (Array.isArray(value)) return value.map((item) => this.noteValueToText(item)).filter(Boolean).join('\n');
+      if (value && typeof value === 'object') return Object.values(value).map((item) => this.noteValueToText(item)).filter(Boolean).join('\n');
+      return cleanJSONLikeText(value);
     };
 
     const title = videoData.title || videoData.videoTitle || 'this educational video';
-    const summary = safeString(notes?.summary) || `These notes summarize the core learning ideas from "${title}" using the available video metadata.`;
-    const keyPoints = safeArray(notes?.keyPoints).length
-      ? safeArray(notes.keyPoints)
+    const summary = safeString(notes?.summary) || `${title} covers the central definitions, mechanisms, and applications needed for exam revision.`;
+    const keyPoints = safeArray(notes?.keyPoints || notes?.keyConcepts).length
+      ? safeArray(notes.keyPoints || notes.keyConcepts)
       : [
-          `Understand the main topic: ${title}.`,
-          'Review the examples or explanations shared in the video.',
-          'Pause and revise the definitions, steps, or formulas mentioned.',
+          title,
+          videoData.category || videoData.categoryId || 'Core concept',
         ];
-    const importantConcepts = safeArray(notes?.importantConcepts).length
-      ? safeArray(notes.importantConcepts)
-      : [videoData.category || videoData.categoryId || 'General study topic'];
+    const importantConcepts = safeArray(notes?.importantConcepts || notes?.importantPoints).length
+      ? safeArray(notes.importantConcepts || notes.importantPoints)
+      : [`Define ${title}.`, 'List the mechanism, formula, or rule explained in the lesson.'];
     const revisionNotes = safeArray(notes?.revisionNotes).length
       ? safeArray(notes.revisionNotes)
-      : ['Revise the topic by writing the main idea in your own words, listing examples, and solving one related practice question.'];
-    const quickRecap = safeString(notes?.quickRecap) ||
-      `Quick recap: ${title} focuses on an educational topic. Rewatch difficult sections and convert them into short revision prompts.`;
-    const suggestedFollowUpTopics = safeArray(notes?.suggestedFollowUpTopics).length
-      ? safeArray(notes.suggestedFollowUpTopics)
-      : ['Practice problems', 'Related beginner tutorial', 'Advanced explanation'];
+      : [`Definition of ${title}`, 'Key mechanism or law', 'Common applications and examples'];
 
     return {
       summary,
       keyPoints,
       importantConcepts,
       revisionNotes,
-      quickRecap,
-      suggestedFollowUpTopics,
       transcriptSource,
-      rawNotesText:
-        notes?.rawNotesText ||
-        [
-          `Short Summary:\n${summary}`,
-          `Key Points:\n${keyPoints.map((item) => `- ${item}`).join('\n')}`,
-          `Important Concepts:\n${importantConcepts.map((item) => `- ${item}`).join('\n')}`,
-          `Revision Notes:\n${revisionNotes.map((item) => `- ${item}`).join('\n')}`,
-          `Quick Recap:\n${quickRecap}`,
-          `Suggested Follow-up Topics:\n${suggestedFollowUpTopics.map((item) => `- ${item}`).join('\n')}`,
-        ].join('\n\n'),
     };
+  }
+
+  noteValueToText(value) {
+    if (value === null || value === undefined) return '';
+    if (Array.isArray(value)) return value.map((item) => this.noteValueToText(item)).filter(Boolean).join(' ');
+    if (typeof value === 'object') return Object.values(value).map((item) => this.noteValueToText(item)).filter(Boolean).join(' ');
+    return String(value).replace(/^[-*\d.\s]+/, '').trim();
   }
 
   cleanGeminiNotesJSON(text = '') {
@@ -555,11 +568,10 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
         'summary',
         'short summary',
         'key points',
+        'key concepts',
         'important concepts',
+        'important points',
         'revision notes',
-        'quick recap',
-        'suggested follow-up topics',
-        'suggested follow up topics',
       ].includes(label);
 
       if (label && normalizedLabels.includes(label)) {
@@ -591,11 +603,9 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
     const bulletLines = lines.filter((line) => !/^[A-Za-z][A-Za-z\s-]+:?$/.test(line));
 
     const summarySection = this.extractRawNotesSection(plainText, ['summary', 'short summary']);
-    const keyPointsSection = this.extractRawNotesSection(plainText, ['key points']);
-    const conceptsSection = this.extractRawNotesSection(plainText, ['important concepts']);
+    const keyPointsSection = this.extractRawNotesSection(plainText, ['key points', 'key concepts']);
+    const conceptsSection = this.extractRawNotesSection(plainText, ['important concepts', 'important points']);
     const revisionSection = this.extractRawNotesSection(plainText, ['revision notes']);
-    const recapSection = this.extractRawNotesSection(plainText, ['quick recap']);
-    const topicsSection = this.extractRawNotesSection(plainText, ['suggested follow-up topics', 'suggested follow up topics']);
 
     return this.normalizeNotesPayload(
       {
@@ -603,9 +613,6 @@ Respond with ONLY one word: EDUCATIONAL or NON-EDUCATIONAL`;
         keyPoints: keyPointsSection.length ? keyPointsSection : bulletLines.slice(0, 5),
         importantConcepts: conceptsSection.length ? conceptsSection : bulletLines.slice(5, 9),
         revisionNotes: revisionSection.length ? revisionSection : sentences.slice(-3),
-        quickRecap: recapSection.join(' ') || sentences.slice(0, 3).join(' '),
-        suggestedFollowUpTopics: topicsSection.length ? topicsSection : bulletLines.slice(-3),
-        rawNotesText: plainText,
       },
       videoData,
       transcriptSource
@@ -1034,29 +1041,26 @@ ${transcript || 'Transcript unavailable.'}`;
 
   buildFallbackNotes(videoData = {}, transcriptSource = 'metadata') {
     const title = videoData.title || videoData.videoTitle || 'Educational video';
-    const channel = videoData.channelTitle || 'the creator';
     const description = videoData.description || '';
     const tags = Array.isArray(videoData.tags) ? videoData.tags.slice(0, 6) : [];
     const concepts = tags.length ? tags : [videoData.category || videoData.categoryId || 'General Study'];
+    const descriptionSentence = description
+      ? description.replace(/\s+/g, ' ').split(/(?<=[.!?])\s+/).find(Boolean)
+      : '';
 
     return this.normalizeNotesPayload(
       {
-        summary: `"${title}" by ${channel} appears to cover an educational topic. Use these notes as a starting point and refine them while watching.`,
+        summary: descriptionSentence || `${title} explains the main definitions, mechanisms, and examples needed to understand the topic clearly.`,
         keyPoints: [
-          `Main topic: ${title}.`,
-          channel ? `Source/channel: ${channel}.` : 'Identify the source and its teaching style.',
-          description ? `Context from description: ${description.slice(0, 180)}${description.length > 180 ? '...' : ''}` : 'Capture definitions, examples, and steps as you watch.',
-          'Mark any formulas, commands, dates, or frameworks that need revision.',
+          title,
+          ...concepts.slice(0, 5),
         ],
         importantConcepts: concepts,
-        revisionNotes:
-          'After watching, rewrite the explanation in your own words, create 3-5 flashcards, and revisit confusing timestamps.',
-        quickRecap:
-          'Focus on the core idea, examples, and practical steps. Summarize the video in five bullet points before moving on.',
-        suggestedFollowUpTopics: [
-          `${title} practice questions`,
-          `${title} beginner explanation`,
-          `${title} advanced concepts`,
+        revisionNotes: [
+          `Definition and meaning of ${title}`,
+          'Core mechanism, rule, formula, or process',
+          'Important examples and applications',
+          'Common exam points and distinctions',
         ],
       },
       videoData,
@@ -1077,7 +1081,18 @@ ${transcript || 'Transcript unavailable.'}`;
       }
     }
 
-    const prompt = `You are StudyShield's AI notes generator. Create concise, useful study notes for this educational YouTube video.
+    const prompt = `You are StudyShield's AI notes generator. Create concise exam revision notes like a good teacher.
+
+Focus only on educational substance:
+- concepts and definitions
+- mechanisms and causes
+- formulas, laws, steps, or rules when relevant
+- applications and real examples
+- crisp revision points useful before an exam
+
+Avoid all generic study advice and filler.
+Do not mention the channel, creator, metadata, transcript availability, or that this is a video.
+Do not write phrases like "use these notes as a starting point", "rewrite in your own words", "focus on the core idea", "practice related questions", or "watch/re-watch".
 
 Return ONLY valid JSON.
 Do not include markdown.
@@ -1086,14 +1101,18 @@ Do not include explanations before or after the JSON.
 Escape all multiline text as JSON-safe strings, or use arrays of strings for lists.
 Use exactly these keys:
 {
-  "summary": "short paragraph",
-  "keyPoints": ["point 1", "point 2"],
-  "importantConcepts": ["concept 1", "concept 2"],
-  "revisionNotes": ["revision note 1", "revision note 2"],
-  "quickRecap": "brief recap",
-  "suggestedFollowUpTopics": ["topic 1", "topic 2"],
-  "rawNotesText": "complete notes text"
+  "summary": "1-2 sentence topic explanation",
+  "keyPoints": ["key concept or definition", "key concept or definition"],
+  "importantConcepts": ["important point, rule, mechanism, formula, or application"],
+  "revisionNotes": ["short exam revision note", "short exam revision note"]
 }
+
+Quality rules:
+- Make every bullet specific to the topic.
+- Prefer factual statements over instructions.
+- Keep bullets concise, usually under 18 words.
+- If the topic has formulas or laws, include them in importantConcepts.
+- If metadata is weak, infer cautiously from the title and avoid filler.
 
 Video metadata:
 Title: ${videoData.title || 'N/A'}
@@ -1136,7 +1155,7 @@ Transcript: ${transcript || 'Transcript unavailable. Generate notes from metadat
         return this.buildNotesFromRawGeminiText(text, videoData, transcriptSource);
       }
 
-      return this.normalizeNotesPayload({ ...parsed, rawNotesText: parsed.rawNotesText || text }, videoData, transcriptSource);
+      return this.normalizeNotesPayload(parsed, videoData, transcriptSource);
     } catch (error) {
       console.warn('[AI NOTES] Gemini notes generation failed, using fallback:', error.message);
       return this.buildFallbackNotes(videoData, transcriptSource);

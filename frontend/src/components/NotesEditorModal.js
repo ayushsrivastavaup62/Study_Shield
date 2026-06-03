@@ -2,7 +2,24 @@ import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Clipboard, Download, Loader2, Save, X } from 'lucide-react';
 
-const listToText = (items) => (Array.isArray(items) ? items.join('\n') : items || '');
+const valueToText = (value) => {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) return value.map(valueToText).filter(Boolean).join('\n');
+  if (typeof value === 'object') return Object.values(value).map(valueToText).filter(Boolean).join('\n');
+
+  const text = String(value).trim();
+  if ((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']'))) {
+    try {
+      return valueToText(JSON.parse(text));
+    } catch (error) {
+      return text.replace(/[{}"]/g, '').replace(/,/g, '\n').trim();
+    }
+  }
+
+  return text;
+};
+
+const listToText = (items) => valueToText(items);
 const textToList = (text) =>
   String(text || '')
     .split('\n')
@@ -13,17 +30,17 @@ export const noteToText = (note) =>
   [
     `Title: ${note.videoTitle || 'Study Notes'}`,
     '',
-    'Short Summary',
-    note.summary || '',
+    'Summary',
+    valueToText(note.summary),
     '',
-    'Key Points',
+    'Key Concepts',
     listToText(note.keyPoints)
       .split('\n')
       .filter(Boolean)
       .map((item) => `- ${item}`)
       .join('\n'),
     '',
-    'Important Concepts',
+    'Important Points',
     listToText(note.importantConcepts)
       .split('\n')
       .filter(Boolean)
@@ -31,13 +48,7 @@ export const noteToText = (note) =>
       .join('\n'),
     '',
     'Revision Notes',
-    note.revisionNotes || '',
-    '',
-    'Quick Recap',
-    note.quickRecap || '',
-    '',
-    'Suggested Follow-up Topics',
-    listToText(note.suggestedFollowUpTopics)
+    listToText(note.revisionNotes)
       .split('\n')
       .filter(Boolean)
       .map((item) => `- ${item}`)
@@ -52,9 +63,10 @@ const NotesEditorModal = ({ isOpen, note, mode = 'save', saving = false, onClose
     if (!note) return;
     setForm({
       ...note,
+      summary: valueToText(note.summary),
       keyPointsText: listToText(note.keyPoints),
       importantConceptsText: listToText(note.importantConcepts),
-      suggestedFollowUpTopicsText: listToText(note.suggestedFollowUpTopics),
+      revisionNotesText: listToText(note.revisionNotes),
     });
     setCopied(false);
   }, [note, isOpen]);
@@ -65,7 +77,7 @@ const NotesEditorModal = ({ isOpen, note, mode = 'save', saving = false, onClose
       ...form,
       keyPoints: textToList(form.keyPointsText),
       importantConcepts: textToList(form.importantConceptsText),
-      suggestedFollowUpTopics: textToList(form.suggestedFollowUpTopicsText),
+      revisionNotes: textToList(form.revisionNotesText),
     });
   }, [form]);
 
@@ -78,7 +90,10 @@ const NotesEditorModal = ({ isOpen, note, mode = 'save', saving = false, onClose
       ...form,
       keyPoints: textToList(form.keyPointsText),
       importantConcepts: textToList(form.importantConceptsText),
-      suggestedFollowUpTopics: textToList(form.suggestedFollowUpTopicsText),
+      revisionNotes: textToList(form.revisionNotesText),
+      quickRecap: '',
+      suggestedFollowUpTopics: [],
+      rawNotesText: '',
     });
   };
 
@@ -128,28 +143,20 @@ const NotesEditorModal = ({ isOpen, note, mode = 'save', saving = false, onClose
 
           <div className="overflow-y-auto max-h-[calc(90vh-156px)] p-5 space-y-4">
             <label className="block">
-              <span className="text-sm font-semibold text-primary-900">Short Summary</span>
+              <span className="text-sm font-semibold text-primary-900">Summary</span>
               <textarea className="input-modern mt-2 w-full min-h-[96px]" value={form.summary || ''} onChange={(e) => updateField('summary', e.target.value)} />
             </label>
             <label className="block">
-              <span className="text-sm font-semibold text-primary-900">Key Points</span>
+              <span className="text-sm font-semibold text-primary-900">Key Concepts</span>
               <textarea className="input-modern mt-2 w-full min-h-[120px]" value={form.keyPointsText} onChange={(e) => updateField('keyPointsText', e.target.value)} />
             </label>
             <label className="block">
-              <span className="text-sm font-semibold text-primary-900">Important Concepts</span>
+              <span className="text-sm font-semibold text-primary-900">Important Points</span>
               <textarea className="input-modern mt-2 w-full min-h-[96px]" value={form.importantConceptsText} onChange={(e) => updateField('importantConceptsText', e.target.value)} />
             </label>
             <label className="block">
               <span className="text-sm font-semibold text-primary-900">Revision Notes</span>
-              <textarea className="input-modern mt-2 w-full min-h-[120px]" value={form.revisionNotes || ''} onChange={(e) => updateField('revisionNotes', e.target.value)} />
-            </label>
-            <label className="block">
-              <span className="text-sm font-semibold text-primary-900">Quick Recap</span>
-              <textarea className="input-modern mt-2 w-full min-h-[80px]" value={form.quickRecap || ''} onChange={(e) => updateField('quickRecap', e.target.value)} />
-            </label>
-            <label className="block">
-              <span className="text-sm font-semibold text-primary-900">Suggested Follow-up Topics</span>
-              <textarea className="input-modern mt-2 w-full min-h-[80px]" value={form.suggestedFollowUpTopicsText} onChange={(e) => updateField('suggestedFollowUpTopicsText', e.target.value)} />
+              <textarea className="input-modern mt-2 w-full min-h-[120px]" value={form.revisionNotesText || ''} onChange={(e) => updateField('revisionNotesText', e.target.value)} />
             </label>
           </div>
 

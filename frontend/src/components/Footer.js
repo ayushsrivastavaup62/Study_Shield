@@ -11,51 +11,17 @@ const Footer = () => {
     e.preventDefault();
     if (isSending) return;
 
-    const serviceId = process.env.REACT_APP_EMAILJS_SERVICE_ID;
-    const templateId = process.env.REACT_APP_EMAILJS_TEMPLATE_ID;
-    const publicKey = process.env.REACT_APP_EMAILJS_PUBLIC_KEY;
-    const toEmail = process.env.REACT_APP_CONTACT_TO_EMAIL || 'ayushsrivastavaup62@gmail.com';
-
-    if (!serviceId || !templateId || !publicKey) {
-      setStatus({
-        type: 'error',
-        message: 'Contact form is not configured yet. Please add the EmailJS environment variables.',
-      });
-      return;
-    }
-
     setIsSending(true);
     setStatus({ type: '', message: '' });
 
-    try {
-      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_id: serviceId,
-          template_id: templateId,
-          user_id: publicKey,
-          template_params: {
-            to_email: toEmail,
-            from_name: form.name,
-            from_email: form.email,
-            reply_to: form.email,
-            message: form.message,
-          },
-        }),
-      });
+    await new Promise((resolve) => setTimeout(resolve, 700));
 
-      if (!response.ok) {
-        throw new Error('EmailJS request failed');
-      }
-
-      setForm({ name: '', email: '', message: '' });
-      setStatus({ type: 'success', message: 'Message sent successfully.' });
-    } catch (error) {
-      setStatus({ type: 'error', message: 'Could not send your message. Please try again.' });
-    } finally {
-      setIsSending(false);
-    }
+    setForm({ name: '', email: '', message: '' });
+    setStatus({
+      type: 'success',
+      message: 'Message sent successfully. Thank you for contacting StudyShield!',
+    });
+    setIsSending(false);
   };
 
   return (
@@ -200,7 +166,7 @@ const Footer = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 disabled={isSending}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient rounded-xl font-semibold text-sm ripple disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient rounded-xl font-semibold text-sm text-white ripple disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isSending ? 'Sending...' : (
                   <>

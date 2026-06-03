@@ -4,6 +4,7 @@ const StudySession = require('../models/StudySession');
 const WatchedVideo = require('../models/WatchedVideo');
 const BlockedVideo = require('../models/BlockedVideo');
 const Quiz = require('../models/Quiz');
+const Note = require('../models/Note');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -83,6 +84,13 @@ const calculateFocusScore = ({
   const streakScore = Math.min(10, currentStreak * 2);
 
   return Math.min(100, studyTimeScore + educationScore + blockingScore + consistencyScore + streakScore);
+};
+
+const mergeActivityCount = (byDate, rows, field, valueKey = 'count') => {
+  rows.forEach((item) => {
+    if (!byDate.has(item._id)) return;
+    byDate.get(item._id)[field] = item[valueKey] || 0;
+  });
 };
 
 const getSummaryForUser = async (userId) => {
@@ -241,6 +249,97 @@ router.get('/categories', async (req, res) => {
     ]);
 
     res.json({ success: true, categories });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.get('/activity-calendar', async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 84, 7), 180);
+    const start = startOfDay(new Date(Date.now() - (days - 1) * DAY_MS));
+    const end = endOfDay(new Date());
+    const userObjectId = toObjectId(userId);
+
+    const [sessions, watched, blocked, notes, quizzes] = await Promise.all([
+      StudySession.aggregate([
+        { $match: { userId: userObjectId, date: { $gte: start, $lte: end } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            studyMinutes: { $sum: { $ifNull: ['$duration', 0] } },
+            completedStudySessions: { $sum: 1 },
+          },
+        },
+      ]),
+      WatchedVideo.aggregate([
+        { $match: { userId: userObjectId, timestamp: { $gte: start, $lte: end } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } }, count: { $sum: 1 } } },
+      ]),
+      BlockedVideo.aggregate([
+        { $match: { userId: userObjectId, timestamp: { $gte: start, $lte: end } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } }, count: { $sum: 1 } } },
+      ]),
+      Note.aggregate([
+        { $match: { userId: userObjectId, createdAt: { $gte: start, $lte: end } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+      ]),
+      Quiz.aggregate([
+        { $match: { userId: userObjectId, attemptedAt: { $gte: start, $lte: end } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$attemptedAt' } },
+            quizzesAttempted: { $sum: 1 },
+            averageQuizScore: { $avg: '$percentage' },
+          },
+        },
+      ]),
+    ]);
+
+    const byDate = new Map();
+    for (let i = 0; i < days; i += 1) {
+      const date = new Date(start.getTime() + i * DAY_MS).toISOString().slice(0, 10);
+      byDate.set(date, {
+        date,
+        studyMinutes: 0,
+        watchedVideos: 0,
+        blockedVideos: 0,
+        notesGenerated: 0,
+        quizzesAttempted: 0,
+        completedStudySessions: 0,
+        averageQuizScore: null,
+        activityScore: 0,
+      });
+    }
+
+    sessions.forEach((item) => {
+      if (!byDate.has(item._id)) return;
+      byDate.get(item._id).studyMinutes = item.studyMinutes || 0;
+      byDate.get(item._id).completedStudySessions = item.completedStudySessions || 0;
+    });
+    mergeActivityCount(byDate, watched, 'watchedVideos');
+    mergeActivityCount(byDate, blocked, 'blockedVideos');
+    mergeActivityCount(byDate, notes, 'notesGenerated');
+    quizzes.forEach((item) => {
+      if (!byDate.has(item._id)) return;
+      byDate.get(item._id).quizzesAttempted = item.quizzesAttempted || 0;
+      byDate.get(item._id).averageQuizScore = Number.isFinite(item.averageQuizScore)
+        ? Math.round(item.averageQuizScore)
+        : null;
+    });
+
+    const activity = [...byDate.values()].map((day) => ({
+      ...day,
+      activityScore:
+        day.watchedVideos +
+        day.blockedVideos +
+        day.notesGenerated +
+        day.quizzesAttempted +
+        day.completedStudySessions,
+    }));
+
+    res.json({ success: true, activity });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -431,7 +431,7 @@ const LandingPage = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.97 }}
             onClick={handleStudyClick}
-            className="px-10 py-4 bg-gradient rounded-full font-bold btn-glow ripple"
+            className="px-10 py-4 bg-gradient rounded-full font-bold text-white btn-glow ripple"
           >
             Time To Study
           </motion.button>
