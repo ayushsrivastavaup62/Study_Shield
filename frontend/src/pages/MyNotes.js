@@ -142,17 +142,19 @@ const MyNotes = () => {
           </p>
         </motion.header>
 
-        <div className="glass rounded-2xl p-4 sm:p-5 border border-primary-900/10 mb-6">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search notes by title, topic, or content"
-              className="input-modern w-full pl-12"
-            />
-          </div>
-        </div>
+       <div className="glass rounded-2xl p-4 sm:p-5 border border-primary-900/10 mb-6">
+  <div className="relative">
+    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none z-10" />
+
+    <input
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      placeholder="Search notes by title, topic, or content"
+      className="input-modern w-full pr-4"
+      style={{ paddingLeft: "3.25rem" }}
+    />
+  </div>
+</div>
 
         {status && <p className="mb-4 text-sm text-primary-700">{status}</p>}
         {error && <p className="mb-4 text-sm text-accent-700">{error}</p>}
