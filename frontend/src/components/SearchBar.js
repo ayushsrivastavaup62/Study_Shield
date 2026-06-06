@@ -16,7 +16,7 @@ const SearchBar = ({ value, onChange, onSearch, loading, className = '' }) => {
           type="search"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Search educational videos..."
+          placeholder="      Search educational videos..."
           className="input-modern w-full pl-11 pr-4 py-2.5 rounded-full"
           autoComplete="off"
         />
